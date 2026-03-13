@@ -1,0 +1,294 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Rを使ったメタ解析サンプルコード</title>
+
+    <style>
+      body {
+        margin: 0;
+        font-family:
+          -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+          "Hiragino Sans", "Yu Gothic UI", "Meiryo", sans-serif;
+        background: linear-gradient(180deg, #eef4ff, #f8fafc);
+        color: #1f2937;
+        line-height: 1.8;
+      }
+
+      header {
+        background: linear-gradient(135deg, #1d4ed8, #3b82f6);
+        color: white;
+        padding: 50px 20px;
+      }
+
+      .wrap {
+        max-width: 960px;
+        margin: auto;
+        padding: 0 20px;
+      }
+
+      h1 {
+        margin: 0 0 10px 0;
+        font-size: 2.4rem;
+      }
+
+      main {
+        padding: 30px 0 60px;
+      }
+
+      section {
+        background: white;
+        border-radius: 16px;
+        padding: 24px;
+        margin-bottom: 20px;
+        border: 1px solid #e5e7eb;
+      }
+
+      h2 {
+        margin-top: 0;
+        color: #1e3a8a;
+      }
+
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+        gap: 16px;
+      }
+
+      .card {
+        border: 1px solid #e5e7eb;
+        border-radius: 12px;
+        padding: 16px;
+        background: #f8fbff;
+      }
+
+      .btn {
+        display: inline-block;
+        margin-top: 10px;
+        padding: 8px 14px;
+        border-radius: 8px;
+        text-decoration: none;
+        background: #2563eb;
+        color: white;
+        font-size: 0.9rem;
+      }
+
+      pre {
+        background: #0f172a;
+        color: #e2e8f0;
+        padding: 14px;
+        border-radius: 10px;
+        overflow-x: auto;
+      }
+
+      code {
+        background: #eef2ff;
+        padding: 2px 5px;
+        border-radius: 6px;
+      }
+
+      .note {
+        background: #eff6ff;
+        border-left: 4px solid #2563eb;
+        padding: 12px 16px;
+        border-radius: 8px;
+      }
+
+      footer {
+        text-align: center;
+        color: #6b7280;
+        padding: 20px;
+      }
+    </style>
+  </head>
+
+  <body>
+    <header>
+      <div class="wrap">
+        <h1>Rを使ったメタ解析サンプルコード</h1>
+        <p>
+          sample.R / sample.csv / report.Rmd を使って RStudio
+          でメタ解析を実行するサンプルです。
+        </p>
+      </div>
+    </header>
+
+    <main>
+      <div class="wrap">
+        <section>
+          <h2>ダウンロード</h2>
+
+          <div class="grid">
+            <div class="card">
+              <b>sample.R</b><br />
+              メタ解析を実行するRコード
+              <br />
+              <a class="btn" href="sample.R" download>Download</a>
+            </div>
+
+            <div class="card">
+              <b>sample.csv</b><br />
+              メタ解析用データ入力ファイル
+              <br />
+              <a class="btn" href="sample.csv" download>Download</a>
+            </div>
+
+            <div class="card">
+              <b>report.Rmd</b><br />
+              HTMLレポート作成用R Markdown
+              <br />
+              <a class="btn" href="report.Rmd" download>Download</a>
+            </div>
+          </div>
+        </section>
+
+        <section>
+          <h2>概要</h2>
+
+          これは <b>R を使ったメタ解析のサンプルコード</b>です。
+          RStudioで実行することができます。
+        </section>
+
+        <section>
+          <h2>準備手順</h2>
+
+          <ol>
+            <li>任意のフォルダを作成します</li>
+            <li>
+              そのフォルダに
+              <ul>
+                <li>sample.R</li>
+                <li>sample.csv</li>
+                <li>report.Rmd</li>
+              </ul>
+              をダウンロードします
+            </li>
+            <li>RStudioでそのフォルダを開きます</li>
+          </ol>
+
+          ダウンロード後、ファイル名は自由に変更できます。
+        </section>
+
+        <section>
+          <h2>sample.csv の入力</h2>
+
+          sample.csv には研究データを入力します。
+
+          <div class="grid">
+            <div class="card">
+              <b>1列目</b><br />Study情報<br />例：<code>Yamada T (2023)</code>
+            </div>
+            <div class="card"><b>2列目</b><br />exposure の eventあり</div>
+            <div class="card"><b>3列目</b><br />exposure の合計</div>
+            <div class="card"><b>4列目</b><br />control の eventあり</div>
+            <div class="card"><b>5列目</b><br />control の合計</div>
+          </div>
+
+          <h3>入力例</h3>
+
+          <pre>
+study,event.e,n.e,event.c,n.c
+Yamada T (2023),12,40,8,38
+Suzuki K (2024),5,20,3,22
+</pre
+          >
+        </section>
+
+        <section>
+          <h2>sample.R の修正</h2>
+
+          CSVの名前を変更した場合は sample.R の4行目を修正します。
+
+          <pre>
+dat &lt;- read.csv("sample.csv", stringsAsFactors = FALSE)
+</pre
+          >
+
+          例えば
+
+          <pre>
+dat &lt;- read.csv("mydata.csv", stringsAsFactors = FALSE)
+</pre
+          >
+
+          また、群名は以下のように設定されています。
+
+          <pre>
+exp_label &lt;- "Group A"
+ctrl_label &lt;- "Group B"
+</pre
+          >
+
+          これらは任意の名前に変更できます。
+        </section>
+
+        <section>
+          <h2>report.Rmd の修正</h2>
+
+          report.Rmd は HTMLレポートを作成するコードです。
+          以下の項目は変更できます。
+
+          <ul>
+            <li>title</li>
+            <li>author</li>
+            <li>Group A / Group B</li>
+          </ul>
+
+          例
+
+          <pre>
+title: "Candida auris mortality meta-analysis"
+author: "Yukihiro Kaneko"
+</pre
+          >
+        </section>
+
+        <section>
+          <h2>実行方法</h2>
+
+          <ol>
+            <li>sample.csv にデータを入力</li>
+            <li>必要なら sample.R を修正</li>
+            <li>必要なら report.Rmd を修正</li>
+            <li>RStudioで sample.R を実行</li>
+            <li>report.Rmd を Knit するとHTMLレポートが作成されます</li>
+          </ol>
+        </section>
+
+        <section>
+          <h2>補足</h2>
+
+          <div class="note">
+            ファイル名を変更した場合は sample.R
+            側のCSVファイル名も必ず変更してください。
+          </div>
+        </section>
+        <section>
+          <h2>注意</h2>
+
+          <ul>
+            <li>
+              現在のサンプルコードは
+              <b>forest plot（フォレストプロット）の作成のみ</b
+              >を行う簡易的なコードです。
+            </li>
+            <li>
+              <b>R および RStudio は別途インストール</b>する必要があります。
+            </li>
+            <li>
+              R や RStudio
+              の基本的な操作方法（スクリプトの実行、パッケージのインストール、R
+              Markdown の Knit など）は、このページでは説明していません。
+            </li>
+            <li>
+              それらの基本的な使い方については、各自で別途学習してください。
+            </li>
+          </ul>
+        </section>
+      </div>
+    </main>
+
+    <footer>Meta-analysis sample (R)</footer>
+  </body>
+</html>

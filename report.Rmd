@@ -1,0 +1,191 @@
+---
+title: "Systematic Review"
+author: "Yamada Tarou"
+date: "`r Sys.Date()`"
+output:
+  html_document:
+    toc: true
+    toc_depth: 3
+    number_sections: true
+  word_document:
+    toc: true
+---
+
+# Overview
+
+This report summarizes a meta-analysis comparing mortality between **Group A** and **Group B**.
+
+# Methods
+
+## Statistical analysis
+
+A meta-analysis was conducted using the **meta** package in R.  
+For each study, the following 2×2 table was used:
+
+- `event.e`: events in *Group A*
+- `n.e`: total *Group A*
+- `event.c`: events in *Group B*
+- `n.c`: total *Group B*
+
+The pooled effect size was estimated as an **odds ratio (OR)** using the Mantel–Haenszel method with both common-effect and random-effects models.  
+A continuity correction of 0.5 was applied when necessary.
+
+# Data and analysis
+
+```{r setup, message=FALSE, warning=FALSE}
+library(meta)
+library(dplyr)
+library(knitr)
+
+knitr::opts_chunk$set(
+  echo = TRUE,
+  warning = FALSE,
+  message = FALSE,
+  fig.align = "center",
+  dpi = 300
+)
+```
+
+## Import data
+
+```{r data}
+# CSVファイル名は必要に応じて変更
+dat <- read.csv("sample.csv", check.names = FALSE)
+
+# 列名を統一
+colnames(dat) <- c("study", "event.e", "n.e", "event.c", "n.c")
+
+# 数値型に変換
+dat$event.e <- as.numeric(dat$event.e)
+dat$n.e     <- as.numeric(dat$n.e)
+dat$event.c <- as.numeric(dat$event.c)
+dat$n.c     <- as.numeric(dat$n.c)
+
+kable(dat, caption = "Included studies")
+```
+
+## Meta-analysis
+
+```{r meta}
+exp_label  <- "Group A"
+ctrl_label <- "Group B"
+
+m <- metabin(
+  event.e, n.e,
+  event.c, n.c,
+  data = dat,
+  studlab = study,
+  sm = "OR",
+  method = "MH",
+  random = TRUE,
+  common = TRUE,
+  incr = 0.5,
+  allstudies = TRUE,
+  method.random.ci = "HK"
+)
+
+m
+```
+
+## Pooled odds ratios
+
+```{r pooled-results}
+res_table <- data.frame(
+  Model = c("Common effect", "Random effects"),
+  OR = c(m$TE.common, m$TE.random),
+  Lower = c(m$lower.common, m$lower.random),
+  Upper = c(m$upper.common, m$upper.random)
+) |>
+  mutate(
+    OR = exp(OR),
+    Lower = exp(Lower),
+    Upper = exp(Upper)
+  )
+
+kable(res_table, digits = 3, caption = "Pooled odds ratios")
+```
+
+## Heterogeneity
+
+```{r heterogeneity}
+heterogeneity <- data.frame(
+  I2 = paste0(round(m$I2, 1), "%"),
+  Tau2 = round(m$tau^2, 4),
+  Q = round(m$Q, 3),
+  p_value = signif(m$pval.Q, 3)
+)
+
+kable(heterogeneity, caption = "Heterogeneity statistics")
+```
+
+## Forest plot
+
+```{r forestplot, fig.width=12, fig.height=7, out.width="100%"}
+forest(
+  m,
+  comb.fixed = FALSE,
+  comb.random = TRUE,
+  leftcols = c("studlab", "event.e", "n.e", "event.c", "n.c"),
+  leftlabs = c("Study", "Events", "Total", "Events", "Total"),
+  lab.e = exp_label,
+  lab.c = ctrl_label,
+  xlab = "Odds Ratio",
+  xlim = c(0.1, 10),
+  smlab = ""
+)
+```
+
+# Interpretation
+
+```{r interpretation, results='asis'}
+or_random  <- exp(m$TE.random)
+lcl_random <- exp(m$lower.random)
+ucl_random <- exp(m$upper.random)
+p_random   <- m$pval.random
+
+cat("### Main finding\n\n")
+
+cat(
+  sprintf(
+    "The pooled random-effects odds ratio for mortality was **%.2f** (95%% CI **%.2f to %.2f**)",
+    or_random, lcl_random, ucl_random
+  )
+)
+
+if (!is.na(p_random)) {
+  cat(sprintf(", with a p-value of **%.3f**.\n\n", p_random))
+} else {
+  cat(".\n\n")
+}
+
+if (lcl_random > 1) {
+  cat("This suggests that mortality was significantly higher in the **Candida auris** group.\n\n")
+} else if (ucl_random < 1) {
+  cat("This suggests that mortality was significantly lower in the **Candida auris** group.\n\n")
+} else {
+  cat("This suggests that there was **no statistically significant difference** in mortality between groups.\n\n")
+}
+
+cat(
+  sprintf(
+    "Statistical heterogeneity was **I² = %.1f%%**.",
+    m$I2
+  )
+)
+
+if (m$I2 < 25) {
+  cat(" Heterogeneity was low.\n")
+} else if (m$I2 < 50) {
+  cat(" Heterogeneity was low to moderate.\n")
+} else if (m$I2 < 75) {
+  cat(" Heterogeneity was moderate to substantial.\n")
+} else {
+  cat(" Heterogeneity was substantial.\n")
+}
+```
+
+# Session information
+
+```{r sessioninfo}
+sessionInfo()
+```
