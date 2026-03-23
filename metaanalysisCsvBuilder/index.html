@@ -46,6 +46,10 @@
         <svg id="iconMoon" width="15" height="15" viewBox="0 0 15 15" fill="none" style="display:none"><path d="M8 2.5A5.5 5.5 0 1 0 11 12a4 4 0 0 1-3-9.5z" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
       </button>
       <div class="sep"></div>
+      <button class="icon-btn danger-btn" id="clearStorageBtn" title="ストレージを消去">
+        <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M2 3.5h10M5.5 3.5V2.5a.5.5 0 0 1 .5-.5h2a.5.5 0 0 1 .5.5v1M3 3.5l.7 7.5a.5.5 0 0 0 .5.5h5.6a.5.5 0 0 0 .5-.5L11 3.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/><path d="M5.5 6v3.5M8.5 6v3.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
+      </button>
+      <div class="sep"></div>
       <label class="hdr-btn" title="CSVをインポート">
         ↑ Import
         <input type="file" id="importFile" accept=".csv" hidden>
@@ -192,6 +196,31 @@
       <div class="rec-row" id="rfCustomRow"></div>
 
     </div><!-- rec-body -->
+  </div>
+</div>
+
+<!-- ══ Import Mode Dialog (3-choice) ══ -->
+<div id="importModeDialog" class="modal-overlay" hidden>
+  <div class="modal">
+    <div class="modal-header"><h2 class="modal-title">インポート方法を選択</h2></div>
+    <div class="modal-body">
+      <p class="confirm-msg" id="importModeMsg"></p>
+      <div class="import-mode-btns">
+        <button class="import-mode-btn" id="importModeAppend">
+          <span class="imb-icon">＋</span>
+          <span class="imb-title">追記</span>
+          <span class="imb-desc">既存データの末尾に追加する</span>
+        </button>
+        <button class="import-mode-btn" id="importModeReplace">
+          <span class="imb-icon">↺</span>
+          <span class="imb-title">差し替え</span>
+          <span class="imb-desc">既存データをすべて置き換える</span>
+        </button>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-cancel" id="importModeCancel">キャンセル</button>
+    </div>
   </div>
 </div>
 

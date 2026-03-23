@@ -125,8 +125,44 @@ function updateUndoRedo() {
   redoBtn.disabled = !future.length;
 }
 
-undoBtn.addEventListener('click', undo);
-redoBtn.addEventListener('click', redo);
+/* ── Clear storage button ── */
+document.getElementById('clearStorageBtn').addEventListener('click', async () => {
+  if (!rows.length) { showToast('消去するデータがありません', 'err'); return; }
+  const ok = await openConfirm(
+    'ストレージを消去',
+    `${rows.length} 件のデータをすべて削除します。この操作は取り消せません。続行しますか？`
+  );
+  if (!ok) return;
+  rows = []; history = []; future = [];
+  save(); render(); updateUndoRedo();
+  showToast('ストレージを消去しました');
+});
+
+/* ── Import mode dialog (3-choice: append / replace / cancel) ── */
+function openImportMode(count) {
+  return new Promise(resolve => {
+    document.getElementById('importModeMsg').textContent =
+      `${count} 件のデータが見つかりました。既存データ（${rows.length} 件）への反映方法を選んでください。`;
+    const dlg     = document.getElementById('importModeDialog');
+    const btnApp  = document.getElementById('importModeAppend');
+    const btnRep  = document.getElementById('importModeReplace');
+    const btnCnl  = document.getElementById('importModeCancel');
+    dlg.hidden = false;
+    const done = r => {
+      dlg.hidden = true;
+      btnApp.onclick = btnRep.onclick = btnCnl.onclick = null;
+      resolve(r);  // 'append' | 'replace' | null
+    };
+    btnApp.onclick = () => done('append');
+    btnRep.onclick = () => done('replace');
+    btnCnl.onclick = () => done(null);
+  });
+}
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape' && !document.getElementById('importModeDialog').hidden) {
+    document.getElementById('importModeDialog').hidden = true;
+  }
+});
 
 /* ════════════════════════════════════════
    Storage
@@ -748,14 +784,17 @@ document.getElementById('importFile').addEventListener('change', async function(
     return base;
   });
 
-  let append = false;
-  if (rows.length>0) {
-    append = await openConfirm('インポート',
-      '「実行」で既存データに追記。キャンセルで上書きします。');
+  // Ask user: append / replace / cancel
+  let mode;
+  if (rows.length > 0) {
+    mode = await openImportMode(newRows.length);
+    if (!mode) return;  // cancelled
+  } else {
+    mode = 'replace';
   }
 
   snapshot();
-  if (append) {
+  if (mode === 'append') {
     // Merge custom cols
     impCustomIds.forEach(id => {
       if (!customCols.find(c=>c.id===id)) {

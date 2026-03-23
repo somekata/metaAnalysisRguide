@@ -326,7 +326,21 @@ tbody tr:hover .act-btns { opacity: 1; }
 .btn-primary { padding: 7px 14px; border-radius: var(--radius); border: none; background: var(--accent); color: #fff; font-family: var(--font-sans); font-size: 12px; font-weight: 600; cursor: pointer; transition: filter var(--trans); }
 .btn-primary:hover { filter: brightness(1.1); }
 
-/* ── Toast ── */
+.icon-btn.danger-btn:hover:not(:disabled) { background: var(--danger-bg); color: var(--danger); border-color: var(--danger); }
+
+/* Import mode dialog */
+.import-mode-btns { display: flex; gap: 10px; margin-top: 14px; }
+.import-mode-btn {
+  flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4px;
+  padding: 14px 10px; border-radius: var(--radius-lg);
+  border: 1px solid var(--border2); background: var(--surface2);
+  cursor: pointer; transition: all var(--trans); text-align: center;
+}
+.import-mode-btn:hover { border-color: var(--accent); background: var(--accent-bg); }
+.import-mode-btn:hover .imb-icon { color: var(--accent); }
+.imb-icon  { font-size: 20px; color: var(--text2); line-height: 1; }
+.imb-title { font-size: 13px; font-weight: 700; color: var(--text); }
+.imb-desc  { font-size: 11px; color: var(--text3); line-height: 1.4; }
 .toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: var(--surface2); border: 1px solid var(--border2); color: var(--text); padding: 9px 18px; border-radius: 100px; font-size: 12px; font-weight: 500; box-shadow: var(--shadow); z-index: 200; white-space: nowrap; animation: fadeToast .2s ease; }
 .toast[hidden] { display: none; }
 .toast.ok  { border-color: var(--accent2); color: var(--accent2); }
