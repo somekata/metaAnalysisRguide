@@ -32,23 +32,32 @@ const SAMPLE_RAW = [
   { study:'Liu & Zhang',      year:2023, evente:19, ne: 70, eventc:16, nc: 72 },
 ];
 
-// ─── COLORS ───────────────────────────────────────────────────
-const C = {
-  bg:      '#0d0f14',
-  bg2:     '#13161e',
-  bg3:     '#1a1e29',
-  border:  '#252a38',
-  border2: '#2e3446',
-  text:    '#e2e6f0',
-  text2:   '#8a93ad',
-  text3:   '#5a6278',
-  accent:  '#4f8ef7',
-  accent2: '#7fb3ff',
-  gold:    '#e8c56a',
-  danger:  '#f07070',
-  success: '#5dd89a',
-  grid:    'rgba(37,42,56,0.8)',
-};
+// ─── COLORS (read from CSS variables so light/dark both work) ──
+function getColors() {
+  const s = getComputedStyle(document.documentElement);
+  const v = k => s.getPropertyValue(k).trim();
+  return {
+    bg:      v('--bg'),
+    bg2:     v('--bg2'),
+    bg3:     v('--bg3'),
+    border:  v('--border'),
+    border2: v('--border2'),
+    text:    v('--text'),
+    text2:   v('--text2'),
+    text3:   v('--text3'),
+    accent:  v('--accent'),
+    accent2: v('--accent2'),
+    gold:    v('--gold'),
+    danger:  v('--danger'),
+    success: v('--success'),
+    grid:    v('--canvas-grid'),
+    rowAlt:  v('--canvas-row-alt'),
+    zero:    v('--canvas-zero'),
+    funnel:  v('--canvas-funnel'),
+  };
+}
+// Live alias — always fresh on each render
+let C = getColors();
 
 // ─── 2×2 TABLE → effect_size / se ─────────────────────────────
 // Haldane–Anscombe continuity correction (add 0.5 when any cell = 0)
@@ -323,7 +332,7 @@ function drawForest(data, meta) {
 
   // zero line
   const x0 = xScale(0);
-  ctx.strokeStyle = 'rgba(232,197,106,0.3)';
+  ctx.strokeStyle = C.zero;
   ctx.lineWidth = 1;
   ctx.setLineDash([5, 3]);
   ctx.beginPath(); ctx.moveTo(x0, margin.top - 10); ctx.lineTo(x0, h - margin.bottom - 5);
@@ -349,7 +358,7 @@ function drawForest(data, meta) {
 
     // alternating row bg
     if (i % 2 === 0) {
-      ctx.fillStyle = 'rgba(26,30,41,0.4)';
+      ctx.fillStyle = C.rowAlt;
       ctx.fillRect(0, margin.top + i * rowH, w, rowH);
     }
 
@@ -488,7 +497,7 @@ function drawFunnel(data, meta) {
 
   // funnel pseudo-CI lines (95%)
   const z = 1.96;
-  ctx.strokeStyle = 'rgba(79,142,247,0.18)';
+  ctx.strokeStyle = C.accent + '30';
   ctx.lineWidth = 1;
   ctx.setLineDash([8, 4]);
   ctx.beginPath();
@@ -507,11 +516,11 @@ function drawFunnel(data, meta) {
   ctx.lineTo(xScale(pooled + z * maxSE), h - margin.bottom);
   ctx.lineTo(xScale(pooled - z * maxSE), h - margin.bottom);
   ctx.closePath();
-  ctx.fillStyle = 'rgba(79,142,247,0.04)';
+  ctx.fillStyle = C.funnel;
   ctx.fill();
 
   // pooled vertical
-  ctx.strokeStyle = 'rgba(232,197,106,0.35)';
+  ctx.strokeStyle = C.zero;
   ctx.lineWidth = 1.2;
   ctx.setLineDash([5, 3]);
   const xp = xScale(pooled);
@@ -613,7 +622,7 @@ function drawSensitivity(data) {
 
   // full pooled reference line
   const xFull = xScale(fullPooled);
-  ctx.strokeStyle = 'rgba(232,197,106,0.35)';
+  ctx.strokeStyle = C.zero;
   ctx.lineWidth = 1.5;
   ctx.setLineDash([5, 3]);
   ctx.beginPath(); ctx.moveTo(xFull, margin.top - 10); ctx.lineTo(xFull, h - margin.bottom); ctx.stroke();
@@ -637,7 +646,7 @@ function drawSensitivity(data) {
 
     // row bg
     if (i % 2 === 0) {
-      ctx.fillStyle = 'rgba(26,30,41,0.4)';
+      ctx.fillStyle = C.rowAlt;
       ctx.fillRect(0, margin.top + i * rowH, w, rowH);
     }
 
@@ -702,6 +711,7 @@ function drawSensitivity(data) {
 
 // ─── RENDER DISPATCHER ────────────────────────────────────────
 function render() {
+  C = getColors(); // refresh on every render (theme may have changed)
   const raw = state.data.length > 0 ? state.data : SAMPLE_RAW;
   const data = computeFromRaw(raw, state.measure);
   state.computed = data;
@@ -900,6 +910,32 @@ window.addEventListener('resize', () => {
   clearTimeout(window._resizeTimer);
   window._resizeTimer = setTimeout(render, 80);
 });
+
+// ─── THEME TOGGLE ─────────────────────────────────────────────
+(function () {
+  const html   = document.documentElement;
+  const btn    = document.getElementById('themeToggle');
+  const moon   = document.getElementById('iconMoon');
+  const sun    = document.getElementById('iconSun');
+
+  // Restore saved preference
+  const saved = localStorage.getItem('metavis-theme');
+  if (saved === 'light') {
+    html.setAttribute('data-theme', 'light');
+    moon.style.display = 'none';
+    sun.style.display  = '';
+  }
+
+  btn.addEventListener('click', () => {
+    const isLight = html.getAttribute('data-theme') === 'light';
+    const next = isLight ? 'dark' : 'light';
+    html.setAttribute('data-theme', next);
+    localStorage.setItem('metavis-theme', next);
+    moon.style.display = next === 'dark' ? '' : 'none';
+    sun.style.display  = next === 'light' ? '' : 'none';
+    render(); // redraw canvas with new colors
+  });
+})();
 
 // ─── INIT ─────────────────────────────────────────────────────
 setupTooltip();
