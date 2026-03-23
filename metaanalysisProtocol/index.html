@@ -1,0 +1,1113 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>システマティックレビュー実施手順書</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+JP:wght@400;600;700&family=Noto+Sans+JP:wght@300;400;500;700&family=JetBrains+Mono&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --ink: #1a1a2e;
+    --ink-light: #4a4a6a;
+    --ink-muted: #8888aa;
+    --accent: #2d6a4f;
+    --accent-light: #52b788;
+    --accent-pale: #d8f3dc;
+    --warn: #e76f51;
+    --bg: #fafaf7;
+    --surface: #ffffff;
+    --border: #e0e0ec;
+    --sidebar-w: 260px;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Noto Sans JP', sans-serif;
+    background: var(--bg);
+    color: var(--ink);
+    font-size: 15px;
+    line-height: 1.8;
+    display: flex;
+    min-height: 100vh;
+  }
+
+  /* ── Sidebar ── */
+  nav {
+    width: var(--sidebar-w);
+    min-height: 100vh;
+    background: var(--ink);
+    color: #c8c8e8;
+    position: fixed;
+    top: 0; left: 0;
+    display: flex;
+    flex-direction: column;
+    padding: 0;
+    z-index: 100;
+    overflow-y: auto;
+  }
+
+  .nav-header {
+    padding: 32px 24px 20px;
+    border-bottom: 1px solid rgba(255,255,255,0.08);
+  }
+
+  .nav-header .logo {
+    font-family: 'Noto Serif JP', serif;
+    font-size: 11px;
+    letter-spacing: 0.2em;
+    color: var(--accent-light);
+    text-transform: uppercase;
+    margin-bottom: 8px;
+  }
+
+  .nav-header h2 {
+    font-size: 13px;
+    font-weight: 500;
+    color: #e8e8f8;
+    line-height: 1.5;
+  }
+
+  .nav-links {
+    padding: 16px 0;
+    flex: 1;
+  }
+
+  .nav-links a {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 24px;
+    color: #a0a0c0;
+    text-decoration: none;
+    font-size: 13px;
+    transition: all 0.15s;
+    border-left: 3px solid transparent;
+  }
+
+  .nav-links a:hover, .nav-links a.active {
+    color: #fff;
+    background: rgba(255,255,255,0.06);
+    border-left-color: var(--accent-light);
+  }
+
+  .nav-links .section-label {
+    padding: 16px 24px 6px;
+    font-size: 10px;
+    letter-spacing: 0.15em;
+    color: #555580;
+    text-transform: uppercase;
+  }
+
+  .nav-num {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 22px; height: 22px;
+    background: rgba(255,255,255,0.08);
+    border-radius: 4px;
+    font-size: 11px;
+    font-family: 'JetBrains Mono', monospace;
+    flex-shrink: 0;
+    color: var(--accent-light);
+  }
+
+  /* ── Main ── */
+  main {
+    margin-left: var(--sidebar-w);
+    flex: 1;
+    max-width: 860px;
+    padding: 60px 56px 100px;
+  }
+
+  .page-header {
+    margin-bottom: 56px;
+    padding-bottom: 40px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .page-header .eyebrow {
+    font-size: 11px;
+    letter-spacing: 0.2em;
+    color: var(--accent);
+    text-transform: uppercase;
+    font-weight: 700;
+    margin-bottom: 12px;
+  }
+
+  .page-header h1 {
+    font-family: 'Noto Serif JP', serif;
+    font-size: 28px;
+    font-weight: 700;
+    color: var(--ink);
+    line-height: 1.4;
+    margin-bottom: 16px;
+  }
+
+  .page-header .subtitle {
+    font-size: 15px;
+    color: var(--ink-light);
+    line-height: 1.7;
+  }
+
+  /* Editable title */
+  .editable-title {
+    border: none;
+    border-bottom: 2px dashed var(--border);
+    background: transparent;
+    font-family: 'Noto Serif JP', serif;
+    font-size: 28px;
+    font-weight: 700;
+    color: var(--ink);
+    line-height: 1.4;
+    width: 100%;
+    outline: none;
+    padding: 4px 0;
+    transition: border-color 0.2s;
+    cursor: text;
+  }
+  .editable-title:focus { border-color: var(--accent-light); }
+  .editable-title::placeholder { color: #bbb; }
+
+  /* ── Sections ── */
+  section {
+    margin-bottom: 64px;
+    scroll-margin-top: 32px;
+  }
+
+  .section-heading {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    margin-bottom: 28px;
+  }
+
+  .section-heading .num {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    color: var(--accent-light);
+    background: var(--ink);
+    padding: 4px 8px;
+    border-radius: 4px;
+    flex-shrink: 0;
+  }
+
+  .section-heading h2 {
+    font-family: 'Noto Serif JP', serif;
+    font-size: 20px;
+    font-weight: 700;
+    color: var(--ink);
+  }
+
+  h3 {
+    font-family: 'Noto Sans JP', sans-serif;
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--ink);
+    letter-spacing: 0.05em;
+    margin: 32px 0 14px;
+    padding-left: 12px;
+    border-left: 3px solid var(--accent-light);
+    text-transform: uppercase;
+  }
+
+  p { margin-bottom: 14px; color: var(--ink-light); }
+
+  /* ── PECO Table ── */
+  .peco-grid {
+    display: grid;
+    grid-template-columns: 120px 1fr;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    overflow: hidden;
+  }
+
+  .peco-row {
+    display: contents;
+  }
+
+  .peco-row > div {
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--border);
+    font-size: 14px;
+  }
+
+  .peco-row:last-child > div { border-bottom: none; }
+
+  .peco-label {
+    background: var(--ink);
+    color: var(--accent-light);
+    font-family: 'JetBrains Mono', monospace;
+    font-weight: 700;
+    font-size: 13px;
+    display: flex;
+    align-items: flex-start;
+    gap: 6px;
+  }
+
+  .peco-letter {
+    font-size: 20px;
+    color: #fff;
+    font-weight: 700;
+    line-height: 1.2;
+  }
+
+  .peco-label small {
+    font-size: 10px;
+    color: #888;
+    display: block;
+    font-family: 'Noto Sans JP', sans-serif;
+    font-weight: 300;
+  }
+
+  .peco-value {
+    background: var(--surface);
+  }
+
+  .peco-value input {
+    width: 100%;
+    border: none;
+    outline: none;
+    background: transparent;
+    font-family: 'Noto Sans JP', sans-serif;
+    font-size: 14px;
+    color: var(--ink);
+    padding: 0;
+  }
+
+  .peco-value input::placeholder { color: #bbb; }
+
+  /* ── Search Queries ── */
+  .query-block {
+    background: var(--ink);
+    border-radius: 8px;
+    padding: 24px;
+    margin-bottom: 16px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+    color: #c8e6c9;
+    line-height: 2;
+  }
+
+  .query-line { display: flex; gap: 16px; margin-bottom: 6px; }
+  .query-id { color: #64b5f6; flex-shrink: 0; }
+  .query-text { color: #e8e8f8; word-break: break-word; }
+  .query-op { color: var(--accent-light); font-weight: 700; }
+
+  .query-editable {
+    display: flex; gap: 16px; margin-bottom: 8px; align-items: flex-start;
+  }
+  .query-editable .query-id { color: #64b5f6; flex-shrink: 0; min-width: 28px; }
+  .query-editable textarea {
+    flex: 1;
+    background: transparent;
+    border: none;
+    border-bottom: 1px dashed #555;
+    color: #e8e8f8;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+    resize: none;
+    outline: none;
+    line-height: 1.7;
+    min-height: 32px;
+    padding: 2px 0;
+  }
+  .query-editable textarea:focus { border-color: var(--accent-light); }
+  .add-query-btn {
+    display: inline-flex; align-items: center; gap: 6px;
+    background: rgba(255,255,255,0.05);
+    border: 1px dashed #555;
+    color: #888;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    padding: 6px 14px;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.2s;
+    margin-top: 4px;
+  }
+  .add-query-btn:hover { background: rgba(255,255,255,0.1); color: #aaa; }
+
+  /* ── DB Table ── */
+  .db-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 12px;
+    font-size: 14px;
+  }
+
+  .db-table th {
+    background: var(--ink);
+    color: var(--accent-light);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 0.1em;
+    padding: 12px 16px;
+    text-align: left;
+    font-weight: 500;
+  }
+
+  .db-table td {
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--border);
+    color: var(--ink-light);
+  }
+
+  .db-table tr:hover td { background: #f5f5fb; }
+
+  .db-table input, .db-table select {
+    width: 100%;
+    border: none;
+    background: transparent;
+    font-family: 'Noto Sans JP', sans-serif;
+    font-size: 14px;
+    color: var(--ink);
+    outline: none;
+    padding: 0;
+  }
+
+  .db-table input::placeholder { color: #bbb; }
+
+  .db-total { background: var(--accent-pale) !important; font-weight: 700; color: var(--accent) !important; }
+
+  .add-row-btn {
+    display: inline-flex; align-items: center; gap: 6px;
+    border: 1px dashed var(--border);
+    background: transparent;
+    color: var(--ink-muted);
+    font-family: 'Noto Sans JP', sans-serif;
+    font-size: 13px;
+    padding: 8px 16px;
+    border-radius: 6px;
+    cursor: pointer;
+    margin-top: 10px;
+    transition: all 0.2s;
+  }
+  .add-row-btn:hover { background: var(--accent-pale); border-color: var(--accent-light); color: var(--accent); }
+
+  /* ── Screening Steps ── */
+  .step-flow {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    margin-top: 16px;
+  }
+
+  .step-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 0;
+    padding: 22px 24px;
+    position: relative;
+  }
+
+  .step-card:first-child { border-radius: 8px 8px 0 0; }
+  .step-card:last-child { border-radius: 0 0 8px 8px; }
+  .step-card + .step-card { border-top: none; }
+
+  .step-num {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px; height: 28px;
+    background: var(--accent);
+    color: #fff;
+    border-radius: 50%;
+    font-size: 12px;
+    font-weight: 700;
+    margin-bottom: 10px;
+  }
+
+  .step-title {
+    font-weight: 700;
+    font-size: 14px;
+    color: var(--ink);
+    margin-bottom: 8px;
+  }
+
+  .step-desc { font-size: 13.5px; color: var(--ink-light); }
+
+  .step-arrow {
+    text-align: center;
+    color: var(--accent-light);
+    font-size: 20px;
+    line-height: 1;
+    padding: 4px 0;
+  }
+
+  /* ── Criteria Pills ── */
+  .criteria-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin: 12px 0;
+  }
+
+  .pill {
+    background: var(--accent-pale);
+    color: var(--accent);
+    padding: 5px 14px;
+    border-radius: 20px;
+    font-size: 12.5px;
+    font-weight: 500;
+    border: 1px solid rgba(82,183,136,0.3);
+    cursor: pointer;
+    transition: all 0.15s;
+    display: flex; align-items: center; gap: 6px;
+  }
+
+  .pill:hover { background: #b7e4c7; }
+  .pill.warn { background: #fde8e3; color: var(--warn); border-color: rgba(231,111,81,0.3); }
+
+  .pill-remove {
+    font-size: 16px; line-height: 1; opacity: 0.5; cursor: pointer;
+  }
+  .pill-remove:hover { opacity: 1; }
+
+  .add-pill-input {
+    border: 1px dashed var(--border);
+    background: transparent;
+    font-family: 'Noto Sans JP', sans-serif;
+    font-size: 12.5px;
+    padding: 5px 14px;
+    border-radius: 20px;
+    outline: none;
+    width: 180px;
+    color: var(--ink);
+    transition: all 0.2s;
+  }
+  .add-pill-input:focus { border-color: var(--accent-light); }
+
+  /* ── CSV columns ── */
+  .csv-header {
+    background: var(--ink);
+    border-radius: 8px;
+    padding: 16px 20px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+    color: #64b5f6;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .csv-col {
+    background: rgba(255,255,255,0.08);
+    padding: 4px 12px;
+    border-radius: 4px;
+    color: #c8e6c9;
+    font-size: 12px;
+  }
+
+  /* ── R analysis ── */
+  .analysis-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    margin-top: 12px;
+  }
+
+  .analysis-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 18px 20px;
+    transition: box-shadow 0.2s;
+  }
+
+  .analysis-card:hover { box-shadow: 0 4px 16px rgba(0,0,0,0.06); }
+
+  .analysis-icon { font-size: 22px; margin-bottom: 8px; }
+  .analysis-name { font-weight: 700; font-size: 14px; color: var(--ink); margin-bottom: 4px; }
+  .analysis-desc { font-size: 12.5px; color: var(--ink-muted); line-height: 1.6; }
+
+  /* ── Note / Callout ── */
+  .callout {
+    background: var(--accent-pale);
+    border-left: 4px solid var(--accent-light);
+    border-radius: 0 6px 6px 0;
+    padding: 14px 18px;
+    margin: 16px 0;
+    font-size: 13.5px;
+    color: var(--accent);
+  }
+
+  .callout.warn {
+    background: #fde8e3;
+    border-left-color: var(--warn);
+    color: var(--warn);
+  }
+
+  /* ── Save banner ── */
+  .save-bar {
+    position: fixed;
+    bottom: 24px; right: 32px;
+    background: var(--ink);
+    color: #fff;
+    padding: 12px 24px;
+    border-radius: 8px;
+    font-size: 13px;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.2);
+    display: flex; align-items: center; gap: 12px;
+    opacity: 0;
+    transform: translateY(10px);
+    transition: all 0.3s;
+    pointer-events: none;
+    z-index: 200;
+  }
+  .save-bar.visible { opacity: 1; transform: translateY(0); pointer-events: auto; }
+  .save-bar button {
+    background: var(--accent-light);
+    color: var(--ink);
+    border: none;
+    padding: 6px 16px;
+    border-radius: 5px;
+    cursor: pointer;
+    font-weight: 700;
+    font-size: 12px;
+    font-family: 'Noto Sans JP', sans-serif;
+  }
+  .save-bar button:hover { background: #74c69d; }
+
+  /* responsive */
+  @media (max-width: 900px) {
+    nav { display: none; }
+    main { margin-left: 0; padding: 32px 24px; }
+    .analysis-grid { grid-template-columns: 1fr; }
+  }
+
+  @media print {
+    nav { display: none; }
+    main { margin-left: 0; }
+  }
+</style>
+</head>
+<body>
+
+<!-- Sidebar -->
+<nav>
+  <div class="nav-header">
+    <div class="logo">Protocol Template</div>
+    <h2>システマティックレビュー<br>実施手順書</h2>
+  </div>
+  <div class="nav-links">
+    <div class="section-label">手順</div>
+    <a href="#peco" onclick="setActive(this)"><span class="nav-num">1</span> PECOフレームワーク</a>
+    <a href="#search" onclick="setActive(this)"><span class="nav-num">2</span> データベース検索</a>
+    <a href="#screening" onclick="setActive(this)"><span class="nav-num">3</span> スクリーニング</a>
+    <a href="#data" onclick="setActive(this)"><span class="nav-num">4</span> データ集計</a>
+    <a href="#analysis" onclick="setActive(this)"><span class="nav-num">5</span> メタ解析</a>
+    <div class="section-label" style="margin-top:16px;">操作</div>
+    <a href="#" onclick="exportJson()"><span class="nav-num">↓</span> JSON保存</a>
+    <a href="#" onclick="window.print()"><span class="nav-num">⎙</span> 印刷／PDF</a>
+  </div>
+</nav>
+
+<!-- Main -->
+<main>
+  <!-- Header -->
+  <div class="page-header">
+    <div class="eyebrow">Systematic Review Protocol</div>
+    <input class="editable-title" id="reviewTitle" type="text"
+      value="システマティックレビュー実施手順書"
+      placeholder="レビュータイトルを入力してください">
+    <div class="subtitle" style="margin-top:12px;">
+      <input type="text" id="reviewSubtitle"
+        style="width:100%;border:none;border-bottom:1px dashed #ddd;background:transparent;font-size:15px;color:var(--ink-light);outline:none;padding:4px 0;"
+        value="" placeholder="サブタイトル・リサーチクエスチョン（任意）">
+    </div>
+  </div>
+
+  <!-- 1. PECO -->
+  <section id="peco">
+    <div class="section-heading">
+      <span class="num">01</span>
+      <h2>PECOフレームワーク</h2>
+    </div>
+    <p>本システマティックレビューのリサーチクエスチョンを以下のPECOに基づいて定義する。</p>
+    <div class="peco-grid">
+      <div class="peco-row">
+        <div class="peco-label"><span class="peco-letter">P</span><span><small>Population</small>患者・対象</span></div>
+        <div class="peco-value"><input type="text" id="pecoP" placeholder="例：ICUに入院した成人患者" /></div>
+      </div>
+      <div class="peco-row">
+        <div class="peco-label"><span class="peco-letter">E</span><span><small>Exposure / Intervention</small>曝露・介入</span></div>
+        <div class="peco-value"><input type="text" id="pecoE" placeholder="例：特定の病原体・薬剤・処置" /></div>
+      </div>
+      <div class="peco-row">
+        <div class="peco-label"><span class="peco-letter">C</span><span><small>Comparator</small>対照</span></div>
+        <div class="peco-value"><input type="text" id="pecoC" placeholder="例：プラセボ・標準治療・別の病原体" /></div>
+      </div>
+      <div class="peco-row">
+        <div class="peco-label"><span class="peco-letter">O</span><span><small>Outcome</small>アウトカム</span></div>
+        <div class="peco-value"><input type="text" id="pecoO" placeholder="例：死亡率・合併症・在院日数" /></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 2. 検索 -->
+  <section id="search">
+    <div class="section-heading">
+      <span class="num">02</span>
+      <h2>データベース検索</h2>
+    </div>
+
+    <h3>検索式</h3>
+    <div class="query-block" id="queryBlock">
+      <!-- queries rendered by JS -->
+    </div>
+
+    <h3>使用データベースと検索結果</h3>
+    <p>以下のデータベースで文献検索を実施する。</p>
+    <table class="db-table" id="dbTable">
+      <thead>
+        <tr>
+          <th>データベース</th>
+          <th>件数</th>
+          <th>ダウンロード形式</th>
+        </tr>
+      </thead>
+      <tbody id="dbBody">
+        <!-- rows rendered by JS -->
+      </tbody>
+      <tfoot>
+        <tr>
+          <td class="db-total">合計（インポート後）</td>
+          <td class="db-total" id="dbTotal">―</td>
+          <td class="db-total">―</td>
+        </tr>
+      </tfoot>
+    </table>
+    <button class="add-row-btn" onclick="addDbRow()">＋ データベースを追加</button>
+
+    <div class="callout" style="margin-top:20px;">
+      検索日：<input type="date" id="searchDate" style="border:none;background:transparent;font-size:13.5px;color:var(--accent);outline:none;font-family:inherit;cursor:pointer;">
+    </div>
+  </section>
+
+  <!-- 3. Screening -->
+  <section id="screening">
+    <div class="section-heading">
+      <span class="num">03</span>
+      <h2>スクリーニング</h2>
+    </div>
+
+    <p>使用するスクリーニングツール：<input type="text" id="screenTool" style="border:none;border-bottom:1px dashed #ccc;background:transparent;font-size:15px;color:var(--ink);outline:none;padding:2px 6px;width:200px;" value="Rayyan" placeholder="Rayyan, Covidence など"></p>
+
+    <div class="step-flow" style="margin-top:20px;">
+      <div class="step-card">
+        <div class="step-num">1</div>
+        <div class="step-title">重複チェック（Deduplication）</div>
+        <div class="step-desc">文献管理ツールの自動重複検出を実行し、候補を一件ずつ確認する。判断基準：著者・タイトル・年・雑誌が一致する場合は重複とみなす。</div>
+      </div>
+      <div class="step-card">
+        <div class="step-num">2</div>
+        <div class="step-title">1次スクリーニング（タイトル・抄録）</div>
+        <div class="step-desc">タイトルと抄録をもとに、PECOに合致するか判定する。<br>
+          <span style="color:var(--accent-light);font-weight:700;">Include（✔）</span> ／
+          <span style="color:var(--warn);font-weight:700;">Exclude（×）</span> ／
+          <span style="color:#f4a261;font-weight:700;">Maybe（?）</span>
+          の3段階で判定。除外時は理由（Reason）を1つ記録。
+        </div>
+      </div>
+      <div class="step-card">
+        <div class="step-num">3</div>
+        <div class="step-title">2次スクリーニング（全文確認）</div>
+        <div class="step-desc">1次でInclude／Maybeとなった文献の全文を取得・精読し、最終採用の判断を行う。</div>
+      </div>
+    </div>
+
+    <h3>1次スクリーニング 除外理由</h3>
+    <p>除外する場合は以下の理由から1つを選択して記録する。</p>
+    <div class="criteria-list" id="excludeReasons1">
+      <!-- rendered by JS -->
+    </div>
+    <input class="add-pill-input" id="newReason1" placeholder="＋ 追加…" onkeydown="addPill(event,'excludeReasons1','newReason1','')">
+
+    <h3>2次スクリーニング 除外基準</h3>
+    <p>全文確認後、以下のいずれかに該当する場合は除外する。</p>
+    <div class="criteria-list" id="excludeReasons2">
+      <!-- rendered by JS -->
+    </div>
+    <input class="add-pill-input" id="newReason2" placeholder="＋ 追加…" onkeydown="addPill(event,'excludeReasons2','newReason2','warn')">
+
+    <div class="callout warn" style="margin-top:20px;">
+      判断に迷う場合は Include に残し、チームで協議して最終判断する。
+    </div>
+  </section>
+
+  <!-- 4. Data -->
+  <section id="data">
+    <div class="section-heading">
+      <span class="num">04</span>
+      <h2>データ集計</h2>
+    </div>
+    <p>2次スクリーニングで採用した文献から、以下の項目を収集してCSVファイルに記録する。</p>
+
+    <h3>収集項目</h3>
+    <div class="csv-header" id="csvCols">
+      <!-- rendered by JS -->
+    </div>
+    <div style="margin-top:10px; display:flex; gap:8px;">
+      <input type="text" id="newCol" placeholder="＋ 列を追加…"
+        style="border:1px dashed #ccc;background:transparent;font-size:13px;padding:6px 14px;border-radius:4px;outline:none;font-family:'JetBrains Mono',monospace;color:var(--ink);"
+        onkeydown="addCsvCol(event)">
+    </div>
+
+    <h3>ファイル命名</h3>
+    <p>出力ファイル名：<input type="text" id="csvFilename" style="border:none;border-bottom:1px dashed #ccc;background:transparent;font-size:15px;color:var(--ink);outline:none;padding:2px 6px;width:240px;" value="reviewData.csv" placeholder="data.csv"></p>
+
+    <h3>アウトカム定義の分類</h3>
+    <p>全文確認時に死亡・アウトカムの定義を以下に分類して記録する。</p>
+    <div class="criteria-list" id="outcomeDefs">
+      <!-- rendered by JS -->
+    </div>
+    <input class="add-pill-input" id="newOutcome" placeholder="＋ 追加…" onkeydown="addPill(event,'outcomeDefs','newOutcome','')">
+  </section>
+
+  <!-- 5. Analysis -->
+  <section id="analysis">
+    <div class="section-heading">
+      <span class="num">05</span>
+      <h2>メタ解析</h2>
+    </div>
+    <p>採用文献のデータを用いて統計解析を実施する。</p>
+
+    <h3>解析ツール</h3>
+    <p>使用ソフトウェア：<input type="text" id="analysisTool" style="border:none;border-bottom:1px dashed #ccc;background:transparent;font-size:15px;color:var(--ink);outline:none;padding:2px 6px;width:240px;" value="R（R Markdown）" placeholder="R, STATA, RevMan など"></p>
+
+    <h3>実施する解析・図</h3>
+    <div class="analysis-grid" id="analysisCards">
+      <!-- rendered by JS -->
+    </div>
+
+    <h3>出力ファイル</h3>
+    <table class="db-table" style="margin-top:8px;">
+      <thead><tr><th>ファイル</th><th>内容</th></tr></thead>
+      <tbody>
+        <tr><td><input type="text" style="border:none;background:transparent;font-family:'JetBrains Mono',monospace;font-size:13px;color:var(--ink);outline:none;width:100%;" value="reviewData.csv" placeholder="データファイル名"></td><td><input type="text" style="border:none;background:transparent;font-size:14px;color:var(--ink-light);outline:none;width:100%;" value="集計済みデータファイル" placeholder="説明"></td></tr>
+        <tr><td><input type="text" style="border:none;background:transparent;font-family:'JetBrains Mono',monospace;font-size:13px;color:var(--ink);outline:none;width:100%;" value="analysis.Rmd" placeholder="解析スクリプト名"></td><td><input type="text" style="border:none;background:transparent;font-size:14px;color:var(--ink-light);outline:none;width:100%;" value="メタ解析コードをまとめたスクリプト" placeholder="説明"></td></tr>
+        <tr><td><input type="text" style="border:none;background:transparent;font-family:'JetBrains Mono',monospace;font-size:13px;color:var(--ink);outline:none;width:100%;" value="report.html" placeholder="出力レポート名"></td><td><input type="text" style="border:none;background:transparent;font-size:14px;color:var(--ink-light);outline:none;width:100%;" value="解析結果をまとめたレポート" placeholder="説明"></td></tr>
+      </tbody>
+    </table>
+
+    <div class="callout" style="margin-top:24px;">
+      Rmdファイルにすべてのコードを記述し、<code style="font-family:'JetBrains Mono',monospace;font-size:12px;background:#dff;padding:1px 5px;border-radius:3px;">knitr::knit()</code> でHTMLにコンパイルして最終レポートを作成する。
+    </div>
+  </section>
+</main>
+
+<!-- Save bar -->
+<div class="save-bar" id="saveBar">
+  変更があります
+  <button onclick="saveState()">💾 保存</button>
+</div>
+
+<script>
+// ────────────────────────────────
+// State
+// ────────────────────────────────
+const DEFAULT = {
+  title: "システマティックレビュー実施手順書",
+  subtitle: "",
+  searchDate: "",
+  screenTool: "Rayyan",
+  analysisTool: "R（R Markdown）",
+  csvFilename: "reviewData.csv",
+  peco: { P: "", E: "", C: "", O: "" },
+  queries: [
+    { id: "#1", text: '\"[曝露/介入]\" OR \"[同義語]\"' },
+    { id: "#2", text: '\"[アウトカム]\" OR \"[同義語]\"' },
+    { id: "#3", text: "#1 AND #2" },
+  ],
+  databases: [
+    { name: "PubMed", count: "", format: "PubMed形式" },
+    { name: "Scopus", count: "", format: "RIS形式" },
+    { name: "Cochrane", count: "", format: "RIS形式" },
+  ],
+  excludeReasons1: ["Wrong outcome", "Wrong publication type", "Book chapter", "Case report", "Editorial", "Letter to the editor", "Non-clinical", "Review", "Systematic review"],
+  excludeReasons2: ["比較群のデータがない", "アウトカムの記載がない", "いずれかの群でn<10", "症例報告・シリーズ"],
+  outcomeDefs: ["28日死亡", "30日死亡", "院内死亡", "Overall mortality", "Non-survived"],
+  csvCols: ["year", "study", "exposure_events", "exposure_total", "comparator_events", "comparator_total"],
+  analyses: [
+    { icon: "📊", name: "Forest plot", desc: "各研究のオッズ比と統合効果量を視覚化する" },
+    { icon: "🔻", name: "Funnel plot", desc: "出版バイアスを視覚的に評価する" },
+    { icon: "🔄", name: "Sensitivity analysis", desc: "特定の研究を除外した際の結果への影響を評価する" },
+    { icon: "🔢", name: "Heterogeneity (I²)", desc: "研究間の異質性を定量的に評価する" },
+  ]
+};
+
+let state = JSON.parse(localStorage.getItem('srProtocol') || 'null') || JSON.parse(JSON.stringify(DEFAULT));
+let dirty = false;
+
+// ────────────────────────────────
+// Render
+// ────────────────────────────────
+function render() {
+  // PECO
+  document.getElementById('reviewTitle').value = state.title;
+  document.getElementById('reviewSubtitle').value = state.subtitle;
+  document.getElementById('pecoP').value = state.peco.P;
+  document.getElementById('pecoE').value = state.peco.E;
+  document.getElementById('pecoC').value = state.peco.C;
+  document.getElementById('pecoO').value = state.peco.O;
+
+  // Search
+  renderQueries();
+  renderDbTable();
+  document.getElementById('searchDate').value = state.searchDate;
+  document.getElementById('screenTool').value = state.screenTool;
+
+  // Screening
+  renderPills('excludeReasons1', state.excludeReasons1, '');
+  renderPills('excludeReasons2', state.excludeReasons2, 'warn');
+  renderPills('outcomeDefs', state.outcomeDefs, '');
+  renderCsvCols();
+
+  // Analysis
+  document.getElementById('analysisTool').value = state.analysisTool;
+  document.getElementById('csvFilename').value = state.csvFilename;
+  renderAnalysisCards();
+}
+
+function renderQueries() {
+  const block = document.getElementById('queryBlock');
+  block.innerHTML = '';
+  state.queries.forEach((q, i) => {
+    const row = document.createElement('div');
+    row.className = 'query-editable';
+    row.innerHTML = `
+      <span class="query-id">${q.id}</span>
+      <textarea rows="1" oninput="autoResize(this);updateQuery(${i},this.value)">${q.text}</textarea>
+      ${i < state.queries.length - 1 ? '' : '<span style="color:#555;font-size:18px;cursor:pointer;margin-top:4px;" onclick="removeQuery('+i+')">×</span>'}
+    `;
+    block.appendChild(row);
+  });
+  const addBtn = document.createElement('button');
+  addBtn.className = 'add-query-btn';
+  addBtn.textContent = '＋ 検索式を追加';
+  addBtn.onclick = addQuery;
+  block.appendChild(addBtn);
+  block.querySelectorAll('textarea').forEach(t => autoResize(t));
+}
+
+function autoResize(el) {
+  el.style.height = 'auto';
+  el.style.height = el.scrollHeight + 'px';
+}
+
+function updateQuery(i, val) { state.queries[i].text = val; markDirty(); }
+function removeQuery(i) { state.queries.splice(i, 1); markDirty(); renderQueries(); }
+function addQuery() {
+  const n = state.queries.length + 1;
+  state.queries.push({ id: `#${n}`, text: '' });
+  markDirty(); renderQueries();
+}
+
+function renderDbTable() {
+  const tbody = document.getElementById('dbBody');
+  tbody.innerHTML = '';
+  let total = 0;
+  state.databases.forEach((db, i) => {
+    const n = parseInt(db.count) || 0;
+    total += n;
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td><input type="text" value="${db.name}" placeholder="データベース名" oninput="state.databases[${i}].name=this.value;markDirty()"></td>
+      <td><input type="number" value="${db.count}" placeholder="0" oninput="state.databases[${i}].count=this.value;markDirty();updateTotal()" style="width:80px;"></td>
+      <td style="display:flex;gap:8px;align-items:center;">
+        <input type="text" value="${db.format}" placeholder="形式" oninput="state.databases[${i}].format=this.value;markDirty()">
+        <span style="cursor:pointer;color:#ccc;font-size:18px;" onclick="removeDbRow(${i})">×</span>
+      </td>
+    `;
+    tbody.appendChild(tr);
+  });
+  updateTotal();
+}
+
+function updateTotal() {
+  let t = 0;
+  state.databases.forEach(db => { t += parseInt(db.count) || 0; });
+  document.getElementById('dbTotal').textContent = t > 0 ? t.toLocaleString() + '件' : '―';
+}
+
+function addDbRow() {
+  state.databases.push({ name: '', count: '', format: 'RIS形式' });
+  markDirty(); renderDbTable();
+}
+
+function removeDbRow(i) {
+  state.databases.splice(i, 1);
+  markDirty(); renderDbTable();
+}
+
+function renderPills(containerId, arr, cls) {
+  const c = document.getElementById(containerId);
+  const pills = c.querySelectorAll('.pill');
+  pills.forEach(p => p.remove());
+  arr.forEach((item, i) => {
+    const pill = document.createElement('span');
+    pill.className = 'pill' + (cls ? ' ' + cls : '');
+    pill.innerHTML = `${item}<span class="pill-remove" onclick="removePill('${containerId}',${i})">×</span>`;
+    c.insertBefore(pill, c.querySelector('input'));
+  });
+}
+
+function removePill(containerId, i) {
+  const map = { excludeReasons1: 'excludeReasons1', excludeReasons2: 'excludeReasons2', outcomeDefs: 'outcomeDefs' };
+  state[map[containerId]].splice(i, 1);
+  markDirty();
+  const cls = containerId === 'excludeReasons2' ? 'warn' : '';
+  renderPills(containerId, state[map[containerId]], cls);
+}
+
+function addPill(e, containerId, inputId, cls) {
+  if (e.key !== 'Enter') return;
+  const input = document.getElementById(inputId);
+  const val = input.value.trim();
+  if (!val) return;
+  const map = { excludeReasons1: 'excludeReasons1', excludeReasons2: 'excludeReasons2', outcomeDefs: 'outcomeDefs' };
+  state[map[containerId]].push(val);
+  input.value = '';
+  markDirty();
+  renderPills(containerId, state[map[containerId]], cls);
+}
+
+function renderCsvCols() {
+  const c = document.getElementById('csvCols');
+  c.innerHTML = '';
+  state.csvCols.forEach((col, i) => {
+    const span = document.createElement('span');
+    span.className = 'csv-col';
+    span.style.cursor = 'pointer';
+    span.title = 'クリックで削除';
+    span.textContent = col;
+    span.onclick = () => {
+      state.csvCols.splice(i, 1);
+      markDirty(); renderCsvCols();
+    };
+    c.appendChild(span);
+  });
+}
+
+function addCsvCol(e) {
+  if (e.key !== 'Enter') return;
+  const input = document.getElementById('newCol');
+  const val = input.value.trim().replace(/\s+/g, '_');
+  if (!val) return;
+  state.csvCols.push(val);
+  input.value = '';
+  markDirty(); renderCsvCols();
+}
+
+function renderAnalysisCards() {
+  const grid = document.getElementById('analysisCards');
+  grid.innerHTML = '';
+  state.analyses.forEach((a, i) => {
+    const card = document.createElement('div');
+    card.className = 'analysis-card';
+    card.innerHTML = `
+      <div class="analysis-icon">${a.icon}</div>
+      <div class="analysis-name"><input type="text" value="${a.name}" placeholder="解析名" oninput="state.analyses[${i}].name=this.value;markDirty()" style="border:none;background:transparent;font-size:14px;font-weight:700;color:var(--ink);outline:none;width:100%;font-family:inherit;"></div>
+      <div class="analysis-desc"><input type="text" value="${a.desc}" placeholder="概要" oninput="state.analyses[${i}].desc=this.value;markDirty()" style="border:none;background:transparent;font-size:12.5px;color:var(--ink-muted);outline:none;width:100%;font-family:inherit;"></div>
+    `;
+    grid.appendChild(card);
+  });
+  // add card
+  const add = document.createElement('div');
+  add.className = 'analysis-card';
+  add.style.cssText = 'border-style:dashed;cursor:pointer;display:flex;align-items:center;justify-content:center;color:var(--ink-muted);font-size:13px;gap:6px;';
+  add.innerHTML = '＋ 解析を追加';
+  add.onclick = () => {
+    state.analyses.push({ icon: '📈', name: '', desc: '' });
+    markDirty(); renderAnalysisCards();
+  };
+  grid.appendChild(add);
+}
+
+// ────────────────────────────────
+// Bindings
+// ────────────────────────────────
+function bindInputs() {
+  const bindings = [
+    ['reviewTitle', 'title'],
+    ['reviewSubtitle', 'subtitle'],
+    ['searchDate', 'searchDate'],
+    ['screenTool', 'screenTool'],
+    ['analysisTool', 'analysisTool'],
+    ['csvFilename', 'csvFilename'],
+    ['pecoP', 'peco.P'],
+    ['pecoE', 'peco.E'],
+    ['pecoC', 'peco.C'],
+    ['pecoO', 'peco.O'],
+  ];
+  bindings.forEach(([id, path]) => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.addEventListener('input', () => {
+      const keys = path.split('.');
+      let obj = state;
+      for (let i = 0; i < keys.length - 1; i++) obj = obj[keys[i]];
+      obj[keys[keys.length - 1]] = el.value;
+      markDirty();
+    });
+  });
+}
+
+// ────────────────────────────────
+// Persistence
+// ────────────────────────────────
+function markDirty() {
+  dirty = true;
+  document.getElementById('saveBar').classList.add('visible');
+}
+
+function saveState() {
+  localStorage.setItem('srProtocol', JSON.stringify(state));
+  dirty = false;
+  const bar = document.getElementById('saveBar');
+  bar.querySelector('button').textContent = '✓ 保存済み';
+  setTimeout(() => {
+    bar.classList.remove('visible');
+    bar.querySelector('button').textContent = '💾 保存';
+  }, 1800);
+}
+
+function exportJson() {
+  const blob = new Blob([JSON.stringify(state, null, 2)], { type: 'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'sr_protocol.json';
+  a.click();
+}
+
+// ────────────────────────────────
+// Nav
+// ────────────────────────────────
+function setActive(el) {
+  document.querySelectorAll('.nav-links a').forEach(a => a.classList.remove('active'));
+  el.classList.add('active');
+}
+
+// Observer for active nav
+const observer = new IntersectionObserver((entries) => {
+  entries.forEach(entry => {
+    if (entry.isIntersecting) {
+      const id = entry.target.id;
+      document.querySelectorAll('.nav-links a').forEach(a => {
+        a.classList.toggle('active', a.getAttribute('href') === '#' + id);
+      });
+    }
+  });
+}, { threshold: 0.3 });
+
+document.querySelectorAll('section[id]').forEach(s => observer.observe(s));
+
+// ────────────────────────────────
+// Init
+// ────────────────────────────────
+render();
+bindInputs();
+</script>
+</body>
+</html>
