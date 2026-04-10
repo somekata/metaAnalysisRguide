@@ -23,9 +23,9 @@ const SAMPLE_RAW = [
   { study:'Wang et al.',      year:2019, evente:72, ne:200, eventc:45, nc:195 },
   { study:'Garcia et al.',    year:2020, evente:14, ne: 60, eventc:12, nc: 65 },
   { study:'Nakamura et al.',  year:2020, evente:48, ne:145, eventc:30, nc:140 },
-  { study:'Brown & Davis',    year:2021, evente:22, ne: 95, eventc:20, nc:100 },
+  { study:'Brown & Davis',    year:2021, evente:10, ne: 95, eventc:20, nc:100 },
   { study:'Patel et al.',     year:2021, evente:89, ne:230, eventc:52, nc:225 },
-  { study:'Kim & Park',       year:2022, evente:36, ne:110, eventc:24, nc:105 },
+  { study:'Kim & Park',       year:2022, evente:12, ne:110, eventc:24, nc:105 },
   { study:'Chen et al.',      year:2022, evente:61, ne:175, eventc:38, nc:170 },
   { study:'Martinez et al.',  year:2023, evente:26, ne: 80, eventc:18, nc: 78 },
   { study:'Thompson et al.',  year:2023, evente:95, ne:260, eventc:58, nc:255 },
@@ -61,7 +61,8 @@ let C = getColors();
 
 // ─── 2×2 TABLE → effect_size / se ─────────────────────────────
 // Haldane–Anscombe continuity correction (add 0.5 when any cell = 0)
-function computeFromRaw(raw, measure) {
+// ciMult: z multiplier for individual study CIs (95%=1.96, 90%=1.645, 99%=2.576)
+function computeFromRaw(raw, measure, ciMult = 1.96) {
   return raw.map(d => {
     let { evente, ne, eventc, nc } = d;
     const nonevente = ne - evente;
@@ -69,49 +70,56 @@ function computeFromRaw(raw, measure) {
 
     // continuity correction if any cell is zero
     const cc = (evente === 0 || nonevente === 0 || eventc === 0 || noneventc === 0) ? 0.5 : 0;
-    const a = evente    + cc;
-    const b = nonevente + cc;
-    const c = eventc    + cc;
+    const a  = evente    + cc;
+    const b  = nonevente + cc;
+    const c  = eventc    + cc;
     const dd = noneventc + cc;
     const n1 = ne + 2 * cc;
     const n2 = nc + 2 * cc;
 
     let effect_size, se, lower_ci, upper_ci;
-    const z = 1.96;
 
     if (measure === 'OR') {
+      // log Odds Ratio; Woolf SE formula
       const logOR = Math.log((a * dd) / (b * c));
-      se = Math.sqrt(1/a + 1/b + 1/c + 1/dd);
-      effect_size = logOR;
-      lower_ci = logOR - z * se;
-      upper_ci = logOR + z * se;
+      se           = Math.sqrt(1/a + 1/b + 1/c + 1/dd);
+      effect_size  = logOR;
+      lower_ci     = logOR - ciMult * se;
+      upper_ci     = logOR + ciMult * se;
     } else if (measure === 'RR') {
-      const p1 = a / n1, p2 = c / n2;
-      const logRR = Math.log(p1 / p2);
-      se = Math.sqrt((1 - p1) / (a) + (1 - p2) / (c));
-      effect_size = logRR;
-      lower_ci = logRR - z * se;
-      upper_ci = logRR + z * se;
+      // log Risk Ratio; Greenwood-type SE on log scale
+      // Var(log RR) = (b/a)/n1 + (dd/c)/n2  = 1/a - 1/n1 + 1/c - 1/n2
+      const logRR  = Math.log((a / n1) / (c / n2));
+      se           = Math.sqrt(1/a - 1/n1 + 1/c - 1/n2);
+      effect_size  = logRR;
+      lower_ci     = logRR - ciMult * se;
+      upper_ci     = logRR + ciMult * se;
     } else { // RD
-      const p1 = a / n1, p2 = c / n2;
+      // Risk Difference; exact SE on natural scale
+      const p1    = a / n1;
+      const p2    = c / n2;
       effect_size = p1 - p2;
-      se = Math.sqrt(p1 * (1 - p1) / n1 + p2 * (1 - p2) / n2);
-      lower_ci = effect_size - z * se;
-      upper_ci = effect_size + z * se;
+      se          = Math.sqrt(p1 * (1 - p1) / n1 + p2 * (1 - p2) / n2);
+      lower_ci    = effect_size - ciMult * se;
+      upper_ci    = effect_size + ciMult * se;
     }
+
+    // Natural-scale point estimates (always from corrected cells for consistency)
+    const or_val = Math.exp(Math.log((a * dd) / (b * c)));   // == (a*dd)/(b*c)
+    const rr_val = (a / n1) / (c / n2);
+    const rd_val = a / n1 - c / n2;
 
     return {
       ...d,
       n_treatment: ne,
-      n_control: nc,
+      n_control:   nc,
       effect_size,
       se,
       lower_ci,
       upper_ci,
-      // Original scale values for display
-      or:  cc === 0 ? (evente * noneventc) / (nonevente * eventc) : Math.exp(Math.log((a * dd) / (b * c))),
-      rr:  (evente / ne) / (eventc / nc),
-      rd:  evente / ne - eventc / nc,
+      or:  or_val,
+      rr:  rr_val,
+      rd:  rd_val,
       p_e: evente / ne,
       p_c: eventc / nc,
     };
@@ -132,7 +140,7 @@ function formatNatural(d, measure) {
 }
 
 // ─── STATS ENGINE ─────────────────────────────────────────────
-function computeMeta(data, model = 'random') {
+function computeMeta(data, model = 'random', ciMult = 1.96) {
   if (!data || data.length === 0) return null;
 
   const yi = data.map(d => d.effect_size);
@@ -148,12 +156,14 @@ function computeMeta(data, model = 'random') {
   const Q = wi_fixed.reduce((s, w, i) => s + w * (yi[i] - fe_pooled) ** 2, 0);
   const k = data.length;
   const df = k - 1;
-  const I2 = Math.max(0, (Q - df) / Q * 100);
+  // Guard against Q=0 (all studies identical) to avoid 0/0 → NaN
+  const I2 = Q > 0 ? Math.max(0, (Q - df) / Q * 100) : 0;
 
   // τ² (DerSimonian-Laird)
   const sumW2 = wi_fixed.reduce((s, w) => s + w * w, 0);
-  const c  = sumW - sumW2 / sumW;
-  const tau2 = Math.max(0, (Q - df) / c);
+  const c_dl  = sumW - sumW2 / sumW;
+  // Guard against c_dl ≈ 0 (single study or all weights equal)
+  const tau2  = c_dl > 1e-10 ? Math.max(0, (Q - df) / c_dl) : 0;
 
   let pooled, se_pooled, wi;
   if (model === 'random') {
@@ -168,9 +178,8 @@ function computeMeta(data, model = 'random') {
     se_pooled = Math.sqrt(1 / sumW);
   }
 
-  const z = 1.96;
-  const ci_lower = pooled - z * se_pooled;
-  const ci_upper = pooled + z * se_pooled;
+  const ci_lower = pooled - ciMult * se_pooled;
+  const ci_upper = pooled + ciMult * se_pooled;
 
   // p-value for Q (chi-squared approx)
   const pQ = 1 - chiSquaredCDF(Q, df);
@@ -188,27 +197,68 @@ function chiSquaredCDF(x, k) {
   return regularizedGammaP(k / 2, x / 2);
 }
 
+// Regularized incomplete gamma P(a,x) = γ(a,x)/Γ(a)
+// Uses series expansion for x < a+1, continued fraction for x >= a+1
 function regularizedGammaP(a, x) {
   if (x < 0) return 0;
   if (x === 0) return 0;
   if (x > 1e8) return 1;
-  let sum = 1 / a, term = 1 / a;
-  for (let n = 1; n <= 200; n++) {
-    term *= x / (a + n);
-    sum += term;
-    if (Math.abs(term) < 1e-10 * Math.abs(sum)) break;
+
+  const lga = lgamma(a);
+
+  if (x < a + 1) {
+    // Series expansion: Σ x^n / (a·(a+1)·…·(a+n))
+    let term = 1 / a, sum = term;
+    for (let n = 1; n <= 500; n++) {
+      term *= x / (a + n);
+      sum  += term;
+      if (Math.abs(term) < 1e-15 * Math.abs(sum)) break;
+    }
+    return Math.min(1, Math.exp(-x + a * Math.log(x) - lga) * sum);
+  } else {
+    // Lentz continued-fraction expansion for Q(a,x) = 1 - P(a,x)
+    // Using the modified Lentz method (Numerical Recipes §6.2)
+    const FPMIN = 1e-300;
+    let b = x + 1 - a, c = 1 / FPMIN, d = 1 / b;
+    let h = d;
+    for (let i = 1; i <= 500; i++) {
+      const an = -i * (i - a);
+      b += 2;
+      d = an * d + b; if (Math.abs(d) < FPMIN) d = FPMIN;
+      c = b + an / c; if (Math.abs(c) < FPMIN) c = FPMIN;
+      d = 1 / d;
+      const del = d * c;
+      h *= del;
+      if (Math.abs(del - 1) < 1e-15) break;
+    }
+    const qax = Math.exp(-x + a * Math.log(x) - lga) * h;
+    return Math.max(0, 1 - qax);
   }
-  return Math.min(1, sum * Math.exp(-x + a * Math.log(x) - lgamma(a)));
 }
 
 function lgamma(x) {
-  const c = [76.18009172947146,-86.50532032941677,24.01409824083091,
-             -1.231739572450155,0.1208650973866179e-2,-0.5395239384953e-5];
-  let y = x, tmp = x + 5.5;
-  tmp -= (x + 0.5) * Math.log(tmp);
-  let ser = 1.000000000190015;
-  for (let j = 0; j < 6; j++) { y++; ser += c[j] / y; }
-  return -tmp + Math.log(2.5066282746310005 * ser / x);
+  // Lanczos approximation (g=7, n=9) — relative error < 1e-15 for Re(z) > 0
+  const g = 7;
+  const c = [
+     0.99999999999980993,
+   676.5203681218851,
+  -1259.1392167224028,
+   771.32342877765313,
+  -176.61502916214059,
+    12.507343278686905,
+    -0.13857109526572012,
+     9.9843695780195716e-6,
+     1.5056327351493116e-7,
+  ];
+  if (x < 0.5) {
+    // Reflection formula: Γ(x)Γ(1-x) = π/sin(πx)
+    return Math.log(Math.PI / Math.sin(Math.PI * x)) - lgamma(1 - x);
+  }
+  x -= 1;
+  let a = c[0];
+  const t = x + g + 0.5;
+  for (let i = 1; i < c.length; i++) a += c[i] / (x + i);
+  return 0.5 * Math.log(2 * Math.PI) + (x + 0.5) * Math.log(t) - t + Math.log(a);
 }
 
 // ─── CANVAS UTILS ─────────────────────────────────────────────
@@ -596,7 +646,7 @@ function drawSensitivity(data) {
   // leave-one-out pooled values
   const results = data.map((_, omit) => {
     const subset = data.filter((__, j) => j !== omit);
-    const m = computeMeta(subset, state.model);
+    const m = computeMeta(subset, state.model, state.ciMult);
     return m;
   });
 
@@ -606,7 +656,7 @@ function drawSensitivity(data) {
   const xScale = makeXScale(xmin, xmax, margin.left, w - margin.right);
 
   // full meta
-  const fullMeta = computeMeta(data, state.model);
+  const fullMeta = computeMeta(data, state.model, state.ciMult);
   const fullPooled = fullMeta ? fullMeta.pooled : 0;
 
   // grid
@@ -712,10 +762,10 @@ function drawSensitivity(data) {
 // ─── RENDER DISPATCHER ────────────────────────────────────────
 function render() {
   C = getColors(); // refresh on every render (theme may have changed)
-  const raw = state.data.length > 0 ? state.data : SAMPLE_RAW;
-  const data = computeFromRaw(raw, state.measure);
+  const raw  = state.data.length > 0 ? state.data : SAMPLE_RAW;
+  const data = computeFromRaw(raw, state.measure, state.ciMult);
   state.computed = data;
-  const meta = computeMeta(data, state.model);
+  const meta = computeMeta(data, state.model, state.ciMult);
 
   if (meta) updateStats(meta, data, data.length);
 
@@ -750,22 +800,38 @@ function updateStats(meta, data, n) {
 
 // ─── CSV PARSER ───────────────────────────────────────────────
 function parseCSV(text) {
-  const lines = text.trim().split(/\r?\n/);
+  // Strip UTF-8 BOM if present (\uFEFF added by Excel/some tools)
+  const clean = text.replace(/^\uFEFF/, '').trim();
+  const lines = clean.split(/\r?\n/);
   const headers = lines[0].split(',').map(h => h.trim().toLowerCase());
+
+  // Check only required columns — extra columns are silently ignored
   const required = ['study', 'evente', 'ne', 'eventc', 'nc'];
   const missing = required.filter(f => !headers.includes(f));
   if (missing.length > 0) {
-    alert(`CSVに必要な列がありません: ${missing.join(', ')}\n必要: study, year, evente, ne, eventc, nc`);
+    alert(`CSVに必要な列がありません: ${missing.join(', ')}\n必要: study, evente, ne, eventc, nc\n（year, region, notes などの追加列は無視されます）`);
     return [];
   }
+
+  // Build index map for required + optional columns only (ignore the rest)
+  const pick = ['study', 'year', 'evente', 'ne', 'eventc', 'nc'];
+  const idx = {};
+  pick.forEach(col => { idx[col] = headers.indexOf(col); });
+
   return lines.slice(1)
     .filter(l => l.trim())
     .map(line => {
       const vals = line.split(',');
       const obj = {};
-      headers.forEach((h, i) => {
-        const v = vals[i]?.trim() ?? '';
-        obj[h] = (h === 'study') ? v : parseFloat(v);
+      pick.forEach(col => {
+        const i = idx[col];
+        const v = (i >= 0 && vals[i] != null) ? vals[i].trim() : '';
+        if (col === 'study') {
+          obj[col] = v;
+        } else {
+          const n = parseFloat(v);
+          obj[col] = isNaN(n) ? undefined : n;
+        }
       });
       return obj;
     })
@@ -784,8 +850,8 @@ function setupTooltip() {
 
   canvas.addEventListener('mousemove', e => {
     const raw = state.data.length > 0 ? state.data : SAMPLE_RAW;
-    const data = state.computed.length > 0 ? state.computed : computeFromRaw(raw, state.measure);
-    const meta = computeMeta(data, state.model);
+    const data = state.computed.length > 0 ? state.computed : computeFromRaw(raw, state.measure, state.ciMult);
+    const meta = computeMeta(data, state.model, state.ciMult);
     const rect = canvas.getBoundingClientRect();
     const my = e.clientY - rect.top;
 
