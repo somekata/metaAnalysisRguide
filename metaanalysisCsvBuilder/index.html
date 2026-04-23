@@ -528,21 +528,62 @@
     <!-- ══ HTML Preview / Print Dialog ══ -->
     <div id="htmlPreviewDialog" class="modal-overlay" hidden>
       <div class="modal modal-wide">
-        <div class="modal-header" style="display:flex;align-items:center;justify-content:space-between;">
+
+        <!-- top bar -->
+        <div class="modal-header html-preview-header">
           <h2 class="modal-title">📋 HTMLプレビュー / 印刷</h2>
-          <div style="display:flex;gap:8px;align-items:center;">
-            <label style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--text2);cursor:pointer;">
-              <input type="checkbox" id="htmlPreviewIncOnly" style="accent-color:var(--accent);">
-              Include のみ
-            </label>
+          <div class="html-preview-actions">
             <button class="btn-primary" id="htmlPrintBtn">🖨 印刷</button>
-            <button class="btn-primary" id="htmlDlBtn" style="background:var(--accent2);">↓ HTMLを保存</button>
+            <button class="btn-primary" id="htmlDlBtn" style="background:var(--accent2);">↓ HTML保存</button>
             <button class="btn-cancel"  id="htmlPreviewClose">閉じる</button>
           </div>
         </div>
-        <div class="modal-body" style="padding:0;overflow:hidden;">
-          <iframe id="htmlPreviewFrame" style="width:100%;height:70vh;border:none;display:block;background:#fff;"></iframe>
-        </div>
+
+        <!-- settings sidebar + iframe -->
+        <div class="html-preview-body">
+
+          <!-- ── left: settings panel ── -->
+          <div class="html-preview-settings" id="htmlSettings">
+
+            <div class="settings-section">
+              <div class="settings-section-title">行フィルター</div>
+              <label class="settings-check">
+                <input type="checkbox" id="htmlOptIncOnly">
+                <span>Include 行のみ</span>
+              </label>
+            </div>
+
+            <div class="settings-section">
+              <div class="settings-section-title">用紙・向き</div>
+              <div class="settings-radio-group">
+                <label class="settings-radio">
+                  <input type="radio" name="htmlPageSize" value="portrait"  checked> A4 縦
+                </label>
+                <label class="settings-radio">
+                  <input type="radio" name="htmlPageSize" value="landscape"> A4 横
+                </label>
+              </div>
+            </div>
+
+            <div class="settings-section">
+              <div class="settings-section-title">
+                表示列
+                <span class="col-toggle-all">
+                  <button class="col-mini-btn" id="htmlColAll">全選択</button>
+                  <button class="col-mini-btn" id="htmlColNone">解除</button>
+                </span>
+              </div>
+              <div id="htmlColChecks" class="col-checks">
+                <!-- built by JS -->
+              </div>
+            </div>
+
+          </div><!-- /.html-preview-settings -->
+
+          <!-- ── right: iframe preview ── -->
+          <iframe id="htmlPreviewFrame" title="プレビュー"></iframe>
+
+        </div><!-- /.html-preview-body -->
       </div>
     </div>
 

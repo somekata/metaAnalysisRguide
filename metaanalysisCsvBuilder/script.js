@@ -862,48 +862,81 @@ function parseCSV(text) {
    HTML Export / Print
 ════════════════════════════════════════ */
 
-/** Build a self-contained HTML string from current rows */
-function buildHtmlReport(subset) {
-  const varHeaders = [colNames.evente, colNames.ne, colNames.eventc, colNames.nc];
-  const customHeaders = customCols.map(c => c.label);
-  const allHeaders = ['#', 'Inc', 'Year', 'Study', 'Region', 'Notes',
-    ...varHeaders, ...customHeaders, 'URL'];
+/**
+ * colDef: array of { key, label, cls }
+ *   key  … field key in row object (or special '_num','_inc')
+ *   label… header text
+ *   cls  … CSS class(es) for td/th
+ */
+function buildColDefs(visibleKeys) {
+  // Always-fixed columns (non-hideable)
+  const fixed = [
+    { key:'_num',   label:'#',      cls:'num',        required:true },
+    { key:'_inc',   label:'Inc',    cls:'inc-cell',   required:true },
+    { key:'year',   label:'Year',   cls:'num year-cell' },
+    { key:'study',  label:'Study',  cls:'study-cell' },
+    { key:'region', label:'Region', cls:'' },
+    { key:'notes',  label:'Notes',  cls:'notes-cell' },
+    { key:'evente', label: colNames.evente, cls:'num' },
+    { key:'ne',     label: colNames.ne,     cls:'num' },
+    { key:'eventc', label: colNames.eventc, cls:'num' },
+    { key:'nc',     label: colNames.nc,     cls:'num' },
+    ...customCols.map(c => ({ key: c.id, label: c.label, cls:'' })),
+    { key:'url',    label:'URL',    cls:'url-cell' },
+    { key:'created_at',  label:'Created',  cls:'date-cell' },
+    { key:'updated_at',  label:'Updated',  cls:'date-cell' },
+  ];
+  if (!visibleKeys) return fixed;
+  return fixed.filter(c => c.required || visibleKeys.has(c.key));
+}
 
-  // Compute column count for colgroup
-  const colCount = allHeaders.length;
-
+function buildHtmlReport(subset, colDefs, pageSize) {
+  // pageSize: 'portrait' | 'landscape'
   const escH = v => (v??'').toString()
     .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 
+  const theadCells = colDefs.map(c => `<th class="${c.cls||''}">${escH(c.label)}</th>`).join('');
+
   const rows_html = subset.map((r, i) => {
     const inc = r.include;
-    const urlCell = r.url
-      ? `<a href="${escH(r.url)}" target="_blank" rel="noopener">${escH(r.url.replace(/^https?:\/\//,'').substring(0,40))}${r.url.length>50?'…':''}</a>`
-      : '';
-    const varCells = [r.evente, r.ne, r.eventc, r.nc].map(v =>
-      `<td class="num">${escH(v)}</td>`).join('');
-    const customCells = customCols.map(c =>
-      `<td>${escH(r[c.id]??'')}</td>`).join('');
-    // Notes: preserve line breaks
-    const notesEsc = escH(r.notes||'').replace(/\n/g,'<br>');
-    return `<tr class="${inc?'inc':'exc'}">
-      <td class="num">${i+1}</td>
-      <td class="inc-cell">${inc?'<span class="badge-inc">✓</span>':'<span class="badge-exc">✕</span>'}</td>
-      <td class="num">${escH(r.year)}</td>
-      <td class="study-cell">${escH(r.study)}</td>
-      <td>${escH(r.region)}</td>
-      <td class="notes-cell">${notesEsc}</td>
-      ${varCells}
-      ${customCells}
-      <td class="url-cell">${urlCell}</td>
-    </tr>`;
+    const cells = colDefs.map(c => {
+      if (c.key === '_num')  return `<td class="num">${i+1}</td>`;
+      if (c.key === '_inc')  return `<td class="inc-cell">${inc
+        ? '<span class="badge-inc">✓</span>'
+        : '<span class="badge-exc">✕</span>'}</td>`;
+      if (c.key === 'notes') {
+        const v = escH(r.notes||'').replace(/\n/g,'<br>');
+        return `<td class="notes-cell">${v}</td>`;
+      }
+      if (c.key === 'url') {
+        const v = r.url||'';
+        const display = v.replace(/^https?:\/\//,'').substring(0,48) + (v.length>55?'…':'');
+        return `<td class="url-cell">${v ? `<a href="${escH(v)}" target="_blank" rel="noopener">${escH(display)}</a>` : ''}</td>`;
+      }
+      if (c.key === 'created_at' || c.key === 'updated_at') {
+        const d = r[c.key] ? new Date(r[c.key]).toLocaleString('ja-JP',
+          {year:'2-digit',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'}) : '';
+        return `<td class="date-cell">${escH(d)}</td>`;
+      }
+      return `<td class="${c.cls||''}">${escH(r[c.key]??'')}</td>`;
+    }).join('');
+    return `<tr class="${inc?'inc':'exc'}">${cells}</tr>`;
   }).join('\n');
-
-  const theadCells = allHeaders.map(h => `<th>${escH(h)}</th>`).join('');
 
   const incCount = subset.filter(r=>r.include).length;
   const excCount = subset.length - incCount;
   const ts = new Date().toLocaleString('ja-JP');
+  const isPortrait = (pageSize !== 'landscape');
+
+  // Column-count hint for A4 portrait: compress if many cols
+  const colCount = colDefs.length;
+  // Base font sizes tuned so wide tables still fit on A4 portrait
+  const printBase  = isPortrait
+    ? (colCount <= 7  ? 11  : colCount <= 10 ? 9.5 : colCount <= 13 ? 8.5 : 7.5)
+    : (colCount <= 10 ? 11  : colCount <= 14 ? 9.5 : 8);
+  const printTh    = Math.max(printBase - 1.5, 6.5);
+  const printPadTd = isPortrait ? '5px 6px' : '5px 8px';
+  const printPadTh = isPortrait ? '5px 6px' : '6px 8px';
 
   return `<!DOCTYPE html>
 <html lang="ja">
@@ -913,244 +946,100 @@ function buildHtmlReport(subset) {
 <title>MetaCSVBuilder Export — ${escH(ts)}</title>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=DM+Sans:wght@400;500;600&display=swap');
-
 :root {
-  --acc:  #3a72e8;
-  --acc2: #0fb885;
-  --bg:   #f7f9fc;
-  --surf: #ffffff;
-  --bdr:  #d8dff0;
-  --txt:  #1a2035;
-  --txt2: #5a6582;
-  --txt3: #9aa3ba;
-  --inc-bg: #f0faf6;
-  --exc-bg: #fafafa;
-  --exc-c:  #b0b8cc;
+  --acc:#3a72e8; --acc2:#0fb885;
+  --bg:#f7f9fc; --surf:#fff;
+  --bdr:#d8dff0; --txt:#1a2035; --txt2:#5a6582; --txt3:#9aa3ba;
 }
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--txt);font-size:13px;line-height:1.5;padding:22px 24px 44px;}
+.report-header{margin-bottom:16px;padding-bottom:12px;border-bottom:2px solid var(--acc);display:flex;justify-content:space-between;align-items:flex-end;flex-wrap:wrap;gap:8px;}
+.report-title{font-size:17px;font-weight:700;letter-spacing:-.3px;}
+.report-title span{color:var(--acc);}
+.report-meta{font-size:11px;color:var(--txt3);font-family:'IBM Plex Mono',monospace;text-align:right;line-height:1.8;}
+.summary-row{display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap;}
+.chip{display:inline-flex;align-items:center;gap:4px;padding:4px 11px;border-radius:100px;font-size:12px;font-weight:600;border:1px solid;}
+.chip-total{background:#eef2ff;border-color:#c5d0f5;color:var(--acc);}
+.chip-inc{background:#e8faf4;border-color:#9de8cc;color:#0a7a58;}
+.chip-exc{background:#f5f5f5;border-color:#d0d0d0;color:#888;}
+.table-wrap{overflow-x:auto;border-radius:7px;border:1px solid var(--bdr);box-shadow:0 2px 10px rgba(0,0,0,.06);}
+table{width:100%;border-collapse:collapse;background:var(--surf);font-size:12.5px;}
+thead{position:sticky;top:0;z-index:2;}
+th{background:#1a2035;color:#c8d0e8;font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;padding:9px 10px;text-align:left;border-right:1px solid #2c3654;white-space:nowrap;}
+th:last-child{border-right:none;}
+td{padding:7px 10px;border-bottom:1px solid var(--bdr);border-right:1px solid #edf0f8;vertical-align:top;}
+td:last-child{border-right:none;}
+tr.inc{background:var(--surf);}
+tr.inc:hover{background:#f5f8ff;}
+tr.exc{background:#fafafa;}
+tr.exc td{color:#b8bfcc;}
+tr:last-child td{border-bottom:none;}
+.num{font-family:'IBM Plex Mono',monospace;font-size:11.5px;text-align:right;white-space:nowrap;}
+.year-cell{white-space:nowrap;}
+.study-cell{font-weight:600;}
+.notes-cell{font-size:12px;color:var(--txt2);word-break:break-word;min-width:140px;}
+.url-cell a{color:var(--acc);text-decoration:none;font-size:11px;word-break:break-all;}
+.url-cell a:hover{text-decoration:underline;}
+.date-cell{font-family:'IBM Plex Mono',monospace;font-size:10.5px;color:var(--txt3);white-space:nowrap;}
+.inc-cell{text-align:center;}
+.badge-inc{display:inline-block;background:#e8faf4;color:#0a7a58;border:1px solid #9de8cc;border-radius:4px;padding:1px 6px;font-size:11px;font-weight:700;}
+.badge-exc{display:inline-block;background:#f5f5f5;color:#aaa;border:1px solid #ddd;border-radius:4px;padding:1px 6px;font-size:11px;}
+footer{margin-top:24px;padding-top:12px;border-top:1px solid var(--bdr);font-size:11px;color:var(--txt3);line-height:1.7;}
 
-*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
-body {
-  font-family: 'DM Sans', sans-serif;
-  background: var(--bg);
-  color: var(--txt);
-  font-size: 13px;
-  line-height: 1.55;
-  padding: 24px 28px 48px;
-}
-
-/* ── Report header ── */
-.report-header {
-  margin-bottom: 20px;
-  padding-bottom: 14px;
-  border-bottom: 2px solid var(--acc);
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-end;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-.report-title {
-  font-size: 18px;
-  font-weight: 700;
-  color: var(--txt);
-  letter-spacing: -.3px;
-}
-.report-title span { color: var(--acc); }
-.report-meta {
-  font-size: 11px;
-  color: var(--txt3);
-  font-family: 'IBM Plex Mono', monospace;
-  text-align: right;
-  line-height: 1.8;
-}
-
-/* ── Summary chips ── */
-.summary-row {
-  display: flex;
-  gap: 10px;
-  margin-bottom: 18px;
-  flex-wrap: wrap;
-}
-.chip {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  padding: 5px 12px;
-  border-radius: 100px;
-  font-size: 12px;
-  font-weight: 600;
-  border: 1px solid;
-}
-.chip-total { background: #eef2ff; border-color: #c5d0f5; color: var(--acc); }
-.chip-inc   { background: #e8faf4; border-color: #9de8cc; color: #0a7a58; }
-.chip-exc   { background: #f5f5f5; border-color: #d0d0d0; color: #888; }
-
-/* ── Table ── */
-.table-wrap {
-  overflow-x: auto;
-  border-radius: 8px;
-  border: 1px solid var(--bdr);
-  box-shadow: 0 2px 12px rgba(0,0,0,.06);
-}
-
-table {
-  width: 100%;
-  border-collapse: collapse;
-  background: var(--surf);
-  font-size: 12.5px;
-}
-
-thead {
-  position: sticky;
-  top: 0;
-  z-index: 2;
-}
-
-th {
-  background: #1a2035;
-  color: #c8d0e8;
-  font-size: 10.5px;
-  font-weight: 700;
-  letter-spacing: .7px;
-  text-transform: uppercase;
-  padding: 10px 11px;
-  text-align: left;
-  border-right: 1px solid #2c3654;
-  white-space: nowrap;
-}
-th:last-child { border-right: none; }
-
-td {
-  padding: 8px 11px;
-  border-bottom: 1px solid var(--bdr);
-  border-right: 1px solid #edf0f8;
-  vertical-align: top;
-}
-td:last-child { border-right: none; }
-
-/* Row styles */
-tr.inc { background: var(--surf); }
-tr.inc:hover { background: #f5f8ff; }
-tr.exc { background: var(--exc-bg); }
-tr.exc td { color: var(--exc-c); }
-tr.exc:hover { background: #f2f2f2; }
-tr:last-child td { border-bottom: none; }
-
-/* Specific cells */
-.num   { font-family: 'IBM Plex Mono', monospace; font-size: 12px; text-align: right; white-space: nowrap; }
-.study-cell { font-weight: 600; min-width: 160px; }
-.notes-cell { min-width: 200px; max-width: 340px; font-size: 12px; color: var(--txt2); word-break: break-word; }
-.url-cell a { color: var(--acc); text-decoration: none; font-size: 11.5px; word-break: break-all; }
-.url-cell a:hover { text-decoration: underline; }
-
-.inc-cell { text-align: center; }
-.badge-inc { display: inline-block; background: #e8faf4; color: #0a7a58; border: 1px solid #9de8cc; border-radius: 4px; padding: 1px 6px; font-size: 11px; font-weight: 700; }
-.badge-exc { display: inline-block; background: #f5f5f5; color: #aaa; border: 1px solid #ddd; border-radius: 4px; padding: 1px 6px; font-size: 11px; }
-
-/* ── Footer ── */
-footer {
-  margin-top: 28px;
-  padding-top: 14px;
-  border-top: 1px solid var(--bdr);
-  font-size: 11px;
-  color: var(--txt3);
-  line-height: 1.7;
-}
-
-/* ════════════════════════════════════
-   PRINT STYLES
-   - A4横向き想定 / 見切れ防止
-════════════════════════════════════ */
 @media print {
   @page {
-    size: A4 landscape;
-    margin: 12mm 10mm 15mm;
+    size: A4 ${isPortrait ? 'portrait' : 'landscape'};
+    margin: 12mm 10mm 14mm;
   }
-
-  body {
-    background: #fff;
-    font-size: 11px;
-    padding: 0;
-    -webkit-print-color-adjust: exact;
-    print-color-adjust: exact;
-    color-adjust: exact;
+  body{
+    background:#fff;font-size:${printBase}px;padding:0;
+    -webkit-print-color-adjust:exact;print-color-adjust:exact;color-adjust:exact;
   }
-
-  .report-header { margin-bottom: 10px; padding-bottom: 8px; }
-  .report-title  { font-size: 14px; }
-  .summary-row   { margin-bottom: 10px; gap: 6px; }
-  .chip          { padding: 3px 9px; font-size: 11px; }
-
-  .table-wrap {
-    border-radius: 0;
-    box-shadow: none;
-    overflow: visible;
+  .report-header{margin-bottom:8px;padding-bottom:7px;}
+  .report-title{font-size:13px;}
+  .summary-row{margin-bottom:8px;gap:5px;}
+  .chip{padding:2px 8px;font-size:10px;}
+  .table-wrap{border-radius:0;box-shadow:none;overflow:visible;}
+  table{font-size:${printBase}px;table-layout:auto;width:100%;}
+  th{
+    font-size:${printTh}px;padding:${printPadTh};
+    background:#1a2035 !important;color:#c8d0e8 !important;
+    -webkit-print-color-adjust:exact;print-color-adjust:exact;
   }
-
-  table {
-    font-size: 10px;
-    table-layout: auto;
-    width: 100%;
-  }
-
-  th {
-    font-size: 9px;
-    padding: 6px 8px;
-    background: #1a2035 !important;
-    color: #c8d0e8 !important;
-    -webkit-print-color-adjust: exact;
-    print-color-adjust: exact;
-  }
-
-  td {
-    padding: 5px 8px;
-    font-size: 10px;
-    word-break: break-word;
-  }
-
-  .notes-cell { max-width: 200px; font-size: 9.5px; }
-  .num        { font-size: 10px; }
-  .url-cell   { max-width: 120px; font-size: 9px; }
-  .url-cell a { word-break: break-all; }
-
-  tr.inc { background: #fff !important; }
-  tr.exc { background: #f8f8f8 !important; }
-  tr.exc td { color: #aaa !important; }
-
-  /* avoid row split across pages */
-  tr { page-break-inside: avoid; break-inside: avoid; }
-  thead { display: table-header-group; }
-  tfoot { display: table-footer-group; }
-
-  footer { margin-top: 12px; font-size: 9px; }
+  td{padding:${printPadTd};font-size:${printBase}px;word-break:break-word;}
+  .num{font-size:${printBase}px;}
+  .notes-cell{max-width:${isPortrait?'150px':'220px'};font-size:${Math.max(printBase-0.5,7)}px;}
+  .url-cell{max-width:${isPortrait?'100px':'160px'};font-size:${Math.max(printBase-1,6.5)}px;}
+  .date-cell{font-size:${Math.max(printBase-1,6.5)}px;}
+  tr.inc{background:#fff !important;}
+  tr.exc{background:#f8f8f8 !important;}
+  tr.exc td{color:#aaa !important;}
+  tr{page-break-inside:avoid;break-inside:avoid;}
+  thead{display:table-header-group;}
+  footer{margin-top:10px;font-size:8.5px;}
 }
 </style>
 </head>
 <body>
 <div class="report-header">
-  <div>
-    <div class="report-title">MetaCSVBuilder — <span>データエクスポート</span></div>
-  </div>
+  <div class="report-title">MetaCSVBuilder — <span>データエクスポート</span></div>
   <div class="report-meta">
     生成日時: ${escH(ts)}<br>
-    総行数: ${subset.length} 件 ／ Include: ${incCount} 件 ／ Exclude: ${excCount} 件
+    総行数: ${subset.length} 件 ／ Include: ${incCount} 件 ／ Exclude: ${excCount} 件 ／
+    用紙: A4 ${isPortrait?'縦':'横'}
   </div>
 </div>
-
 <div class="summary-row">
   <span class="chip chip-total">📊 全 ${subset.length} 件</span>
   <span class="chip chip-inc">✓ Include ${incCount} 件</span>
   ${excCount > 0 ? `<span class="chip chip-exc">✕ Exclude ${excCount} 件</span>` : ''}
 </div>
-
 <div class="table-wrap">
 <table>
   <thead><tr>${theadCells}</tr></thead>
   <tbody>${rows_html}</tbody>
 </table>
 </div>
-
 <footer>
   <strong>注意事項：</strong>本ファイルはAI（Claude, Anthropic）を用いて作成されたMetaCSVBuilderで生成されました。内容には誤りが含まれる可能性があります。医療上の判断には必ず公式の教科書・文献・専門家の指導を参照してください。二次利用・再配布は自己責任のもとで可能です。その際、本注記の保持を推奨します。
 </footer>
@@ -1158,32 +1047,97 @@ footer {
 </html>`;
 }
 
-/** Show preview dialog */
+/* ── Preview dialog ── */
+function buildColCheckboxes() {
+  const container = document.getElementById('htmlColChecks');
+  container.innerHTML = '';
+  const defs = buildColDefs();   // all possible cols
+  // skip _num, _inc (always shown, no checkbox needed)
+  defs.filter(c => !c.required).forEach(c => {
+    const label = document.createElement('label');
+    label.className = 'col-check-item';
+    const cb = document.createElement('input');
+    cb.type = 'checkbox';
+    cb.dataset.colKey = c.key;
+    cb.checked = true;   // default: all on
+    cb.addEventListener('change', scheduleRefresh);
+    const span = document.createElement('span');
+    span.className = 'col-check-label';
+    span.textContent = c.label || c.key;
+    span.title = c.key;
+    label.appendChild(cb);
+    label.appendChild(span);
+    container.appendChild(label);
+  });
+}
+
+function getCheckedColKeys() {
+  const keys = new Set(['_num','_inc']);  // always included
+  document.querySelectorAll('#htmlColChecks input[type=checkbox]').forEach(cb => {
+    if (cb.checked) keys.add(cb.dataset.colKey);
+  });
+  return keys;
+}
+
+function getPageSize() {
+  const el = document.querySelector('input[name="htmlPageSize"]:checked');
+  return el ? el.value : 'portrait';
+}
+
+let _refreshTimer = null;
+function scheduleRefresh() {
+  clearTimeout(_refreshTimer);
+  _refreshTimer = setTimeout(doRefreshPreview, 120);
+}
+
+function doRefreshPreview() {
+  const frame  = document.getElementById('htmlPreviewFrame');
+  const incOnly = document.getElementById('htmlOptIncOnly').checked;
+  const subset  = incOnly ? rows.filter(r=>r.include) : rows;
+  if (!subset.length) {
+    frame.srcdoc = '<p style="padding:20px;font-family:sans-serif;color:#888">対象データがありません</p>';
+    return;
+  }
+  const colDefs  = buildColDefs(getCheckedColKeys());
+  const pageSize = getPageSize();
+  frame.srcdoc = buildHtmlReport(subset, colDefs, pageSize);
+}
+
 function openHtmlPreview() {
   if (!rows.length) { showToast('エクスポートするデータがありません','err'); return; }
-  const dlg = document.getElementById('htmlPreviewDialog');
-  const cb  = document.getElementById('htmlPreviewIncOnly');
-  const frame = document.getElementById('htmlPreviewFrame');
 
-  function refreshPreview() {
-    const subset = cb.checked ? rows.filter(r=>r.include) : rows;
-    if (!subset.length) { frame.srcdoc = '<p style="padding:20px;font-family:sans-serif;color:#888">対象データがありません</p>'; return; }
-    frame.srcdoc = buildHtmlReport(subset);
-  }
+  buildColCheckboxes();   // rebuild for current customCols state
 
-  cb.checked = false;
-  cb.onchange = refreshPreview;
-  refreshPreview();
-  dlg.hidden = false;
-
-  document.getElementById('htmlPrintBtn').onclick = () => {
-    frame.contentWindow.print();
+  // wire: all-select / none buttons
+  document.getElementById('htmlColAll').onclick = () => {
+    document.querySelectorAll('#htmlColChecks input').forEach(cb => { cb.checked = true; });
+    scheduleRefresh();
+  };
+  document.getElementById('htmlColNone').onclick = () => {
+    document.querySelectorAll('#htmlColChecks input').forEach(cb => { cb.checked = false; });
+    scheduleRefresh();
   };
 
+  // wire: row-filter & page-size → refresh
+  document.getElementById('htmlOptIncOnly').checked = false;
+  document.getElementById('htmlOptIncOnly').onchange = scheduleRefresh;
+  document.querySelectorAll('input[name="htmlPageSize"]').forEach(r => {
+    r.onchange = scheduleRefresh;
+  });
+
+  // Print button
+  document.getElementById('htmlPrintBtn').onclick = () => {
+    document.getElementById('htmlPreviewFrame').contentWindow.print();
+  };
+
+  // Download button
   document.getElementById('htmlDlBtn').onclick = () => {
-    const subset = cb.checked ? rows.filter(r=>r.include) : rows;
+    const incOnly = document.getElementById('htmlOptIncOnly').checked;
+    const subset  = incOnly ? rows.filter(r=>r.include) : rows;
     if (!subset.length) { showToast('対象データがありません','err'); return; }
-    const html = buildHtmlReport(subset);
+    const colDefs  = buildColDefs(getCheckedColKeys());
+    const pageSize = getPageSize();
+    const html = buildHtmlReport(subset, colDefs, pageSize);
     const blob = new Blob([html], { type:'text/html;charset=utf-8' });
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
@@ -1192,6 +1146,9 @@ function openHtmlPreview() {
     URL.revokeObjectURL(a.href);
     showToast('HTMLを保存しました','ok');
   };
+
+  doRefreshPreview();
+  document.getElementById('htmlPreviewDialog').hidden = false;
 }
 
 document.getElementById('htmlPreviewClose').addEventListener('click', () => {
