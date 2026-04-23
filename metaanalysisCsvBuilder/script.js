@@ -859,6 +859,347 @@ function parseCSV(text) {
 }
 
 /* ════════════════════════════════════════
+   HTML Export / Print
+════════════════════════════════════════ */
+
+/** Build a self-contained HTML string from current rows */
+function buildHtmlReport(subset) {
+  const varHeaders = [colNames.evente, colNames.ne, colNames.eventc, colNames.nc];
+  const customHeaders = customCols.map(c => c.label);
+  const allHeaders = ['#', 'Inc', 'Year', 'Study', 'Region', 'Notes',
+    ...varHeaders, ...customHeaders, 'URL'];
+
+  // Compute column count for colgroup
+  const colCount = allHeaders.length;
+
+  const escH = v => (v??'').toString()
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+
+  const rows_html = subset.map((r, i) => {
+    const inc = r.include;
+    const urlCell = r.url
+      ? `<a href="${escH(r.url)}" target="_blank" rel="noopener">${escH(r.url.replace(/^https?:\/\//,'').substring(0,40))}${r.url.length>50?'…':''}</a>`
+      : '';
+    const varCells = [r.evente, r.ne, r.eventc, r.nc].map(v =>
+      `<td class="num">${escH(v)}</td>`).join('');
+    const customCells = customCols.map(c =>
+      `<td>${escH(r[c.id]??'')}</td>`).join('');
+    // Notes: preserve line breaks
+    const notesEsc = escH(r.notes||'').replace(/\n/g,'<br>');
+    return `<tr class="${inc?'inc':'exc'}">
+      <td class="num">${i+1}</td>
+      <td class="inc-cell">${inc?'<span class="badge-inc">✓</span>':'<span class="badge-exc">✕</span>'}</td>
+      <td class="num">${escH(r.year)}</td>
+      <td class="study-cell">${escH(r.study)}</td>
+      <td>${escH(r.region)}</td>
+      <td class="notes-cell">${notesEsc}</td>
+      ${varCells}
+      ${customCells}
+      <td class="url-cell">${urlCell}</td>
+    </tr>`;
+  }).join('\n');
+
+  const theadCells = allHeaders.map(h => `<th>${escH(h)}</th>`).join('');
+
+  const incCount = subset.filter(r=>r.include).length;
+  const excCount = subset.length - incCount;
+  const ts = new Date().toLocaleString('ja-JP');
+
+  return `<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>MetaCSVBuilder Export — ${escH(ts)}</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=DM+Sans:wght@400;500;600&display=swap');
+
+:root {
+  --acc:  #3a72e8;
+  --acc2: #0fb885;
+  --bg:   #f7f9fc;
+  --surf: #ffffff;
+  --bdr:  #d8dff0;
+  --txt:  #1a2035;
+  --txt2: #5a6582;
+  --txt3: #9aa3ba;
+  --inc-bg: #f0faf6;
+  --exc-bg: #fafafa;
+  --exc-c:  #b0b8cc;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: 'DM Sans', sans-serif;
+  background: var(--bg);
+  color: var(--txt);
+  font-size: 13px;
+  line-height: 1.55;
+  padding: 24px 28px 48px;
+}
+
+/* ── Report header ── */
+.report-header {
+  margin-bottom: 20px;
+  padding-bottom: 14px;
+  border-bottom: 2px solid var(--acc);
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.report-title {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--txt);
+  letter-spacing: -.3px;
+}
+.report-title span { color: var(--acc); }
+.report-meta {
+  font-size: 11px;
+  color: var(--txt3);
+  font-family: 'IBM Plex Mono', monospace;
+  text-align: right;
+  line-height: 1.8;
+}
+
+/* ── Summary chips ── */
+.summary-row {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 18px;
+  flex-wrap: wrap;
+}
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 12px;
+  border-radius: 100px;
+  font-size: 12px;
+  font-weight: 600;
+  border: 1px solid;
+}
+.chip-total { background: #eef2ff; border-color: #c5d0f5; color: var(--acc); }
+.chip-inc   { background: #e8faf4; border-color: #9de8cc; color: #0a7a58; }
+.chip-exc   { background: #f5f5f5; border-color: #d0d0d0; color: #888; }
+
+/* ── Table ── */
+.table-wrap {
+  overflow-x: auto;
+  border-radius: 8px;
+  border: 1px solid var(--bdr);
+  box-shadow: 0 2px 12px rgba(0,0,0,.06);
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  background: var(--surf);
+  font-size: 12.5px;
+}
+
+thead {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+}
+
+th {
+  background: #1a2035;
+  color: #c8d0e8;
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: .7px;
+  text-transform: uppercase;
+  padding: 10px 11px;
+  text-align: left;
+  border-right: 1px solid #2c3654;
+  white-space: nowrap;
+}
+th:last-child { border-right: none; }
+
+td {
+  padding: 8px 11px;
+  border-bottom: 1px solid var(--bdr);
+  border-right: 1px solid #edf0f8;
+  vertical-align: top;
+}
+td:last-child { border-right: none; }
+
+/* Row styles */
+tr.inc { background: var(--surf); }
+tr.inc:hover { background: #f5f8ff; }
+tr.exc { background: var(--exc-bg); }
+tr.exc td { color: var(--exc-c); }
+tr.exc:hover { background: #f2f2f2; }
+tr:last-child td { border-bottom: none; }
+
+/* Specific cells */
+.num   { font-family: 'IBM Plex Mono', monospace; font-size: 12px; text-align: right; white-space: nowrap; }
+.study-cell { font-weight: 600; min-width: 160px; }
+.notes-cell { min-width: 200px; max-width: 340px; font-size: 12px; color: var(--txt2); word-break: break-word; }
+.url-cell a { color: var(--acc); text-decoration: none; font-size: 11.5px; word-break: break-all; }
+.url-cell a:hover { text-decoration: underline; }
+
+.inc-cell { text-align: center; }
+.badge-inc { display: inline-block; background: #e8faf4; color: #0a7a58; border: 1px solid #9de8cc; border-radius: 4px; padding: 1px 6px; font-size: 11px; font-weight: 700; }
+.badge-exc { display: inline-block; background: #f5f5f5; color: #aaa; border: 1px solid #ddd; border-radius: 4px; padding: 1px 6px; font-size: 11px; }
+
+/* ── Footer ── */
+footer {
+  margin-top: 28px;
+  padding-top: 14px;
+  border-top: 1px solid var(--bdr);
+  font-size: 11px;
+  color: var(--txt3);
+  line-height: 1.7;
+}
+
+/* ════════════════════════════════════
+   PRINT STYLES
+   - A4横向き想定 / 見切れ防止
+════════════════════════════════════ */
+@media print {
+  @page {
+    size: A4 landscape;
+    margin: 12mm 10mm 15mm;
+  }
+
+  body {
+    background: #fff;
+    font-size: 11px;
+    padding: 0;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+    color-adjust: exact;
+  }
+
+  .report-header { margin-bottom: 10px; padding-bottom: 8px; }
+  .report-title  { font-size: 14px; }
+  .summary-row   { margin-bottom: 10px; gap: 6px; }
+  .chip          { padding: 3px 9px; font-size: 11px; }
+
+  .table-wrap {
+    border-radius: 0;
+    box-shadow: none;
+    overflow: visible;
+  }
+
+  table {
+    font-size: 10px;
+    table-layout: auto;
+    width: 100%;
+  }
+
+  th {
+    font-size: 9px;
+    padding: 6px 8px;
+    background: #1a2035 !important;
+    color: #c8d0e8 !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  td {
+    padding: 5px 8px;
+    font-size: 10px;
+    word-break: break-word;
+  }
+
+  .notes-cell { max-width: 200px; font-size: 9.5px; }
+  .num        { font-size: 10px; }
+  .url-cell   { max-width: 120px; font-size: 9px; }
+  .url-cell a { word-break: break-all; }
+
+  tr.inc { background: #fff !important; }
+  tr.exc { background: #f8f8f8 !important; }
+  tr.exc td { color: #aaa !important; }
+
+  /* avoid row split across pages */
+  tr { page-break-inside: avoid; break-inside: avoid; }
+  thead { display: table-header-group; }
+  tfoot { display: table-footer-group; }
+
+  footer { margin-top: 12px; font-size: 9px; }
+}
+</style>
+</head>
+<body>
+<div class="report-header">
+  <div>
+    <div class="report-title">MetaCSVBuilder — <span>データエクスポート</span></div>
+  </div>
+  <div class="report-meta">
+    生成日時: ${escH(ts)}<br>
+    総行数: ${subset.length} 件 ／ Include: ${incCount} 件 ／ Exclude: ${excCount} 件
+  </div>
+</div>
+
+<div class="summary-row">
+  <span class="chip chip-total">📊 全 ${subset.length} 件</span>
+  <span class="chip chip-inc">✓ Include ${incCount} 件</span>
+  ${excCount > 0 ? `<span class="chip chip-exc">✕ Exclude ${excCount} 件</span>` : ''}
+</div>
+
+<div class="table-wrap">
+<table>
+  <thead><tr>${theadCells}</tr></thead>
+  <tbody>${rows_html}</tbody>
+</table>
+</div>
+
+<footer>
+  <strong>注意事項：</strong>本ファイルはAI（Claude, Anthropic）を用いて作成されたMetaCSVBuilderで生成されました。内容には誤りが含まれる可能性があります。医療上の判断には必ず公式の教科書・文献・専門家の指導を参照してください。二次利用・再配布は自己責任のもとで可能です。その際、本注記の保持を推奨します。
+</footer>
+</body>
+</html>`;
+}
+
+/** Show preview dialog */
+function openHtmlPreview() {
+  if (!rows.length) { showToast('エクスポートするデータがありません','err'); return; }
+  const dlg = document.getElementById('htmlPreviewDialog');
+  const cb  = document.getElementById('htmlPreviewIncOnly');
+  const frame = document.getElementById('htmlPreviewFrame');
+
+  function refreshPreview() {
+    const subset = cb.checked ? rows.filter(r=>r.include) : rows;
+    if (!subset.length) { frame.srcdoc = '<p style="padding:20px;font-family:sans-serif;color:#888">対象データがありません</p>'; return; }
+    frame.srcdoc = buildHtmlReport(subset);
+  }
+
+  cb.checked = false;
+  cb.onchange = refreshPreview;
+  refreshPreview();
+  dlg.hidden = false;
+
+  document.getElementById('htmlPrintBtn').onclick = () => {
+    frame.contentWindow.print();
+  };
+
+  document.getElementById('htmlDlBtn').onclick = () => {
+    const subset = cb.checked ? rows.filter(r=>r.include) : rows;
+    if (!subset.length) { showToast('対象データがありません','err'); return; }
+    const html = buildHtmlReport(subset);
+    const blob = new Blob([html], { type:'text/html;charset=utf-8' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `study_${new Date().toISOString().slice(0,10)}.html`;
+    a.click();
+    URL.revokeObjectURL(a.href);
+    showToast('HTMLを保存しました','ok');
+  };
+}
+
+document.getElementById('htmlPreviewClose').addEventListener('click', () => {
+  document.getElementById('htmlPreviewDialog').hidden = true;
+});
+document.getElementById('exportHtmlBtn').addEventListener('click', openHtmlPreview);
+
+/* ════════════════════════════════════════
    Init
 ════════════════════════════════════════ */
 load();

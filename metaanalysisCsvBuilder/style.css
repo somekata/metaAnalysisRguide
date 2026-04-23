@@ -341,6 +341,9 @@ tbody tr:hover .act-btns { opacity: 1; }
 .imb-icon  { font-size: 20px; color: var(--text2); line-height: 1; }
 .imb-title { font-size: 13px; font-weight: 700; color: var(--text); }
 .imb-desc  { font-size: 11px; color: var(--text3); line-height: 1.4; }
+.modal-wide { max-width: min(1100px, 96vw) !important; width: min(1100px, 96vw) !important; }
+.export-html-btn { color: var(--accent2); border-color: rgba(47,212,164,.4); background: rgba(47,212,164,.07); font-size: 11px; padding: 5px 10px; border-left: 1px solid var(--border) !important; }
+.export-html-btn:hover { background: rgba(47,212,164,.16); color: var(--accent2); }
 .toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: var(--surface2); border: 1px solid var(--border2); color: var(--text); padding: 9px 18px; border-radius: 100px; font-size: 12px; font-weight: 500; box-shadow: var(--shadow); z-index: 200; white-space: nowrap; animation: fadeToast .2s ease; }
 .toast[hidden] { display: none; }
 .toast.ok  { border-color: var(--accent2); color: var(--accent2); }
