@@ -1,0 +1,4 @@
+1: Marshall K, Colquhoun J, Singh R, Rather PN. Loss of capsule confers a growth
+advantage to <i>Acinetobacter</i> spp. under microaerophilic conditions.
+Microbiol Spectr. 2026 Mar 3;14(3):e0269225. doi: 10.1128/spectrum.02692-25.
+Epub 2026 Jan 22. PMID: 41568953; PMCID: PMC12955453.

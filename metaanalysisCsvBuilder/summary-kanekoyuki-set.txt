@@ -1,0 +1,31 @@
+1: Saren C, Oinuma K-I, Tsubouchi T, Sakiyama A, Suzuki M, Niki M, Kaneko Y.
+Benefits and costs of a hypercapsule and the mechanism of its loss in a clinical
+isolate of <i>Acinetobacter baumannii</i>. mBio. 2026 Feb 11;17(2):e0236625.
+doi: 10.1128/mbio.02366-25. Epub 2025 Dec 29. PMID: 41459967; PMCID:
+PMC12892936.
+
+2: Tohda M, Oinuma KI, Sakiyama A, Tsubouchi T, Niki M, Namikawa H, Yamane K,
+Yamada K, Watanabe T, Asai K, Kakeya H, Kaneko Y, Kawaguchi T. Rifampicin exerts
+anti-mucoviscous activity against hypervirulent Klebsiella pneumoniae via
+binding to the RNA polymerase β subunit. J Glob Antimicrob Resist. 2023
+Mar;32:21-28. doi: 10.1016/j.jgar.2022.11.018. Epub 2022 Dec 23. PMID: 36572148.
+
+3: Namikawa H, Oinuma KI, Sakiyama A, Tsubouchi T, Tahara YO, Yamada K, Niki M,
+Takemoto Y, Miyata M, Kaneko Y, Shuto T, Kakeya H. Discovery of anti-mucoviscous
+activity of rifampicin and its potential as a candidate antivirulence agent
+against hypervirulent Klebsiella pneumoniae. Int J Antimicrob Agents. 2019
+Aug;54(2):167-175. doi: 10.1016/j.ijantimicag.2019.05.018. Epub 2019 Jun 5.
+PMID: 31173862.
+
+4: Urai M, Kaneko Y, Ueno K, Okubo Y, Aizawa T, Fukazawa H, Sugita T, Ohno H,
+Shibuya K, Kinjo Y, Miyazaki Y. Evasion of Innate Immune Responses by the Highly
+Virulent Cryptococcus gattii by Altering Capsule Glucuronoxylomannan Structure.
+Front Cell Infect Microbiol. 2016 Jan 6;5:101. doi: 10.3389/fcimb.2015.00101.
+PMID: 26779451; PMCID: PMC4701946.
+
+5: Ueno K, Kinjo Y, Okubo Y, Aki K, Urai M, Kaneko Y, Shimizu K, Wang DN,
+Okawara A, Nara T, Ohkouchi K, Mizuguchi Y, Kawamoto S, Kamei K, Ohno H, Niki Y,
+Shibuya K, Miyazaki Y. Dendritic cell-based immunization ameliorates pulmonary
+infection with highly virulent Cryptococcus gattii. Infect Immun. 2015
+Apr;83(4):1577-86. doi: 10.1128/IAI.02827-14. Epub 2015 Feb 2. PMID: 25644007;
+PMCID: PMC4363414.
