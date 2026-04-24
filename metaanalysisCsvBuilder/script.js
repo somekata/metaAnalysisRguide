@@ -1047,6 +1047,227 @@ footer{margin-top:24px;padding-top:12px;border-top:1px solid var(--bdr);font-siz
 </html>`;
 }
 
+/* ────────────────────────────────────────
+   NOS parser
+   Format: "8(1,1,1,1,1,1,1,1,0)"  or  "NA"
+   Returns null if unparseable.
+   Selection  : items[0-3]  (4 items, max 4)
+   Comparability: items[4-5] (2 items, max 2)
+   Outcome    : items[6-8]  (3 items, max 3)
+──────────────────────────────────────── */
+function parseNOS(raw) {
+  if (!raw || raw.toString().trim().toUpperCase() === 'NA') return null;
+  const m = raw.toString().match(/\(([0-9,]+)\)/);
+  if (!m) return null;
+  const bits = m[1].split(',').map(v => parseInt(v.trim(), 10));
+  if (bits.length < 9) return null;
+
+  const s = bits.slice(0, 4);
+  const c = bits.slice(4, 6);
+  const o = bits.slice(6, 9);
+
+  const sumS = s.reduce((a,b)=>a+b,0);
+  const sumC = c.reduce((a,b)=>a+b,0);
+  const sumO = o.reduce((a,b)=>a+b,0);
+  const total = sumS + sumC + sumO;
+
+  function stars(bits, max) {
+    return bits.map(b => b ? '★' : '☆').join('');
+  }
+
+  return {
+    total, maxTotal: 9,
+    s: sumS, maxS: 4, starsS: stars(s, 4),
+    c: sumC, maxC: 2, starsC: stars(c, 2),
+    o: sumO, maxO: 3, starsO: stars(o, 3),
+    label: `total ${total}/9,  S ${sumS}/4 (${stars(s,4)}),  C ${sumC}/2 (${stars(c,2)}),  O ${sumO}/3 (${stars(o,3)})`
+  };
+}
+
+/* ────────────────────────────────────────
+   Card HTML export
+──────────────────────────────────────── */
+function buildCardReport(subset, pageSize) {
+  const escH = v => (v??'').toString()
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+
+  const isPortrait = (pageSize !== 'landscape');
+  const ts = new Date().toLocaleString('ja-JP');
+  const incCount = subset.filter(r=>r.include).length;
+  const excCount  = subset.length - incCount;
+
+  // Build card HTML for each row
+  const cardsHtml = subset.map((r, i) => {
+    const inc = r.include;
+    const nos = parseNOS(r['NOS'] ?? r['nos'] ?? '');
+
+    // NOS display line
+    let nosLine = 'NA';
+    if (nos) {
+      nosLine = `total ${nos.total}/9&emsp;S ${nos.s}/4&thinsp;(${escH(nos.starsS)})&emsp;C ${nos.c}/2&thinsp;(${escH(nos.starsC)})&emsp;O ${nos.o}/3&thinsp;(${escH(nos.starsO)})`;
+    }
+
+    // Notes: preserve line breaks
+    const notesHtml = escH(r.notes || '').replace(/\n/g, '<br>');
+
+    // URL display
+    const urlRaw = r.url || '';
+    const urlDisplay = urlRaw.replace(/^https?:\/\//,'');
+    const urlHtml = urlRaw
+      ? `<a href="${escH(urlRaw)}" target="_blank" rel="noopener">${escH(urlDisplay)}</a>`
+      : '—';
+
+    // Collect custom columns (anything not in FIXED_FIELDS and not NOS/include/created/updated)
+    const skipKeys = new Set(['year','study','region','url','notes','evente','ne','eventc','nc',
+      'NOS','nos','include','created_at','updated_at',
+      'auris events','auris total','NAC events','NAC total',
+      'Outcome Category','Outcome']);
+
+    const customRows = customCols
+      .filter(c => !skipKeys.has(c.id) && !skipKeys.has(c.label))
+      .map(c => {
+        const v = r[c.id] ?? '';
+        if (v === '' || v === null || v === undefined) return '';
+        return `<div class="card-row"><span class="card-label">${escH(c.label)}</span><span class="card-val">${escH(v)}</span></div>`;
+      }).join('');
+
+    // auris / NAC event data
+    const aurisE = r['auris events'] ?? r['evente'] ?? '—';
+    const aurisN = r['auris total'] ?? r['ne']     ?? '—';
+    const nacE   = r['NAC events']  ?? r['eventc'] ?? '—';
+    const nacN   = r['NAC total']   ?? r['nc']     ?? '—';
+
+    const outcomeCategory = r['Outcome Category'] ?? '';
+    const outcome         = r['Outcome']          ?? '';
+
+    return `
+<div class="study-card ${inc ? 'card-inc' : 'card-exc'}">
+  <div class="card-top">
+    <span class="card-num">${i + 1}</span>
+    <span class="card-title">${escH(r.study || '—')}</span>
+    <span class="card-year">${escH(String(r.year || ''))}</span>
+    <span class="badge-${inc ? 'inc' : 'exc'}">${inc ? 'Include' : 'Exclude'}</span>
+  </div>
+  <div class="card-body">
+    <div class="card-row"><span class="card-label">Region</span><span class="card-val">${escH(r.region || '—')}</span></div>
+    <div class="card-row"><span class="card-label">NOS</span><span class="card-val card-nos">${nosLine}</span></div>
+    <div class="card-row"><span class="card-label"><em>C. auris</em></span><span class="card-val">events ${escH(String(aurisE))}&ensp;/&ensp;total ${escH(String(aurisN))}</span></div>
+    <div class="card-row"><span class="card-label">NACS</span><span class="card-val">events ${escH(String(nacE))}&ensp;/&ensp;total ${escH(String(nacN))}</span></div>
+    <div class="card-row"><span class="card-label">Outcome Category</span><span class="card-val">${escH(outcomeCategory) || '—'}</span></div>
+    <div class="card-row"><span class="card-label">Outcome</span><span class="card-val">${escH(outcome) || '—'}</span></div>
+    ${customRows}
+    ${notesHtml ? `<div class="card-notes"><span class="card-label">Notes</span><div class="card-notes-body">${notesHtml}</div></div>` : ''}
+    <div class="card-row card-url-row"><span class="card-label">URL</span><span class="card-val">${urlHtml}</span></div>
+  </div>
+</div>`;
+  }).join('\n');
+
+  return `<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>MetaCSVBuilder Card Export — ${escH(ts)}</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=DM+Sans:wght@400;500;600&display=swap');
+:root {
+  --acc:#3a72e8; --acc2:#0fb885;
+  --bg:#f7f9fc; --surf:#fff;
+  --bdr:#d8dff0; --txt:#1a2035; --txt2:#5a6582; --txt3:#9aa3ba;
+  --inc-left:#3a72e8; --exc-left:#d0d5e0;
+  --inc-bg:#fff; --exc-bg:#f9f9fb;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--txt);font-size:13px;line-height:1.5;padding:22px 24px 44px;}
+.report-header{margin-bottom:16px;padding-bottom:12px;border-bottom:2px solid var(--acc);display:flex;justify-content:space-between;align-items:flex-end;flex-wrap:wrap;gap:8px;}
+.report-title{font-size:17px;font-weight:700;letter-spacing:-.3px;}
+.report-title span{color:var(--acc);}
+.report-meta{font-size:11px;color:var(--txt3);font-family:'IBM Plex Mono',monospace;text-align:right;line-height:1.8;}
+.summary-row{display:flex;gap:8px;margin-bottom:18px;flex-wrap:wrap;}
+.chip{display:inline-flex;align-items:center;gap:4px;padding:4px 11px;border-radius:100px;font-size:12px;font-weight:600;border:1px solid;}
+.chip-total{background:#eef2ff;border-color:#c5d0f5;color:var(--acc);}
+.chip-inc{background:#e8faf4;border-color:#9de8cc;color:#0a7a58;}
+.chip-exc{background:#f5f5f5;border-color:#d0d0d0;color:#888;}
+
+/* ── Cards ── */
+.card-list{display:flex;flex-direction:column;gap:14px;}
+.study-card{
+  background:var(--surf);
+  border:1px solid var(--bdr);
+  border-left-width:4px;
+  border-radius:7px;
+  overflow:hidden;
+  box-shadow:0 1px 6px rgba(0,0,0,.06);
+  page-break-inside:avoid;
+  break-inside:avoid;
+}
+.card-inc{border-left-color:var(--inc-left);background:var(--inc-bg);}
+.card-exc{border-left-color:var(--exc-left);background:var(--exc-bg);opacity:.75;}
+.card-top{
+  display:flex;align-items:center;gap:10px;
+  padding:9px 14px;
+  border-bottom:1px solid var(--bdr);
+  background:rgba(0,0,0,.02);
+  flex-wrap:wrap;
+}
+.card-num{font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--txt3);min-width:20px;}
+.card-title{font-size:14px;font-weight:700;flex:1;color:var(--txt);}
+.card-year{font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--txt3);}
+.badge-inc{display:inline-block;background:#e8faf4;color:#0a7a58;border:1px solid #9de8cc;border-radius:4px;padding:1px 8px;font-size:11px;font-weight:700;}
+.badge-exc{display:inline-block;background:#f5f5f5;color:#aaa;border:1px solid #ddd;border-radius:4px;padding:1px 8px;font-size:11px;}
+.card-body{padding:10px 14px;display:flex;flex-direction:column;gap:5px;}
+.card-row{display:flex;align-items:baseline;gap:8px;font-size:12.5px;}
+.card-label{
+  flex-shrink:0;width:130px;
+  font-size:11px;font-weight:600;color:var(--txt3);
+  letter-spacing:.3px;
+}
+.card-val{color:var(--txt);word-break:break-word;}
+.card-nos{font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--txt);}
+.card-url-row .card-val a{color:var(--acc);text-decoration:none;font-size:11.5px;word-break:break-all;}
+.card-url-row .card-val a:hover{text-decoration:underline;}
+.card-notes{display:flex;flex-direction:column;gap:3px;font-size:12px;}
+.card-notes .card-label{width:auto;margin-bottom:1px;}
+.card-notes-body{color:var(--txt2);line-height:1.55;padding-left:4px;border-left:2px solid var(--bdr);}
+em{font-style:italic;}
+footer{margin-top:28px;padding-top:12px;border-top:1px solid var(--bdr);font-size:11px;color:var(--txt3);line-height:1.7;}
+
+@media print {
+  @page { size: A4 ${isPortrait ? 'portrait' : 'landscape'}; margin: 12mm 10mm 14mm; }
+  body{background:#fff;padding:0;font-size:11px;-webkit-print-color-adjust:exact;print-color-adjust:exact;}
+  .report-header{margin-bottom:8px;padding-bottom:7px;}
+  .report-title{font-size:13px;}
+  .summary-row{margin-bottom:10px;}
+  .study-card{box-shadow:none;margin-bottom:0;}
+  .card-list{gap:10px;}
+  footer{font-size:8.5px;margin-top:10px;}
+}
+</style>
+</head>
+<body>
+<div class="report-header">
+  <div class="report-title">MetaCSVBuilder — <span>カードエクスポート</span></div>
+  <div class="report-meta">
+    生成日時: ${escH(ts)}<br>
+    総行数: ${subset.length} 件 ／ Include: ${incCount} 件 ／ Exclude: ${excCount} 件 ／
+    用紙: A4 ${isPortrait?'縦':'横'}
+  </div>
+</div>
+<div class="summary-row">
+  <span class="chip chip-total">📊 全 ${subset.length} 件</span>
+  <span class="chip chip-inc">✓ Include ${incCount} 件</span>
+  ${excCount > 0 ? `<span class="chip chip-exc">✕ Exclude ${excCount} 件</span>` : ''}
+</div>
+<div class="card-list">
+${cardsHtml}
+</div>
+<footer>
+  <strong>注意事項：</strong>本ファイルはAI（Claude, Anthropic）を用いて作成されたMetaCSVBuilderで生成されました。内容には誤りが含まれる可能性があります。医療上の判断には必ず公式の教科書・文献・専門家の指導を参照してください。二次利用・再配布は自己責任のもとで可能です。その際、本注記の保持を推奨します。
+</footer>
+</body>
+</html>`;
+}
+
 /* ── Preview dialog ── */
 function buildColCheckboxes() {
   const container = document.getElementById('htmlColChecks');
@@ -1090,17 +1311,34 @@ function scheduleRefresh() {
   _refreshTimer = setTimeout(doRefreshPreview, 120);
 }
 
+function getViewMode() {
+  const el = document.querySelector('input[name="htmlViewMode"]:checked');
+  return el ? el.value : 'table';
+}
+
 function doRefreshPreview() {
-  const frame  = document.getElementById('htmlPreviewFrame');
+  const frame   = document.getElementById('htmlPreviewFrame');
   const incOnly = document.getElementById('htmlOptIncOnly').checked;
   const subset  = incOnly ? rows.filter(r=>r.include) : rows;
   if (!subset.length) {
     frame.srcdoc = '<p style="padding:20px;font-family:sans-serif;color:#888">対象データがありません</p>';
     return;
   }
-  const colDefs  = buildColDefs(getCheckedColKeys());
   const pageSize = getPageSize();
-  frame.srcdoc = buildHtmlReport(subset, colDefs, pageSize);
+  const mode     = getViewMode();
+
+  // カード形式のとき「表示列」パネルを折り畳む
+  const colSection = document.getElementById('htmlColChecks')
+    ? document.getElementById('htmlColChecks').closest('.settings-section')
+    : null;
+  if (colSection) colSection.style.display = mode === 'card' ? 'none' : '';
+
+  if (mode === 'card') {
+    frame.srcdoc = buildCardReport(subset, pageSize);
+  } else {
+    const colDefs = buildColDefs(getCheckedColKeys());
+    frame.srcdoc  = buildHtmlReport(subset, colDefs, pageSize);
+  }
 }
 
 function openHtmlPreview() {
@@ -1118,10 +1356,13 @@ function openHtmlPreview() {
     scheduleRefresh();
   };
 
-  // wire: row-filter & page-size → refresh
+  // wire: row-filter & page-size & view-mode → refresh
   document.getElementById('htmlOptIncOnly').checked = false;
   document.getElementById('htmlOptIncOnly').onchange = scheduleRefresh;
   document.querySelectorAll('input[name="htmlPageSize"]').forEach(r => {
+    r.onchange = scheduleRefresh;
+  });
+  document.querySelectorAll('input[name="htmlViewMode"]').forEach(r => {
     r.onchange = scheduleRefresh;
   });
 
@@ -1135,13 +1376,19 @@ function openHtmlPreview() {
     const incOnly = document.getElementById('htmlOptIncOnly').checked;
     const subset  = incOnly ? rows.filter(r=>r.include) : rows;
     if (!subset.length) { showToast('対象データがありません','err'); return; }
-    const colDefs  = buildColDefs(getCheckedColKeys());
     const pageSize = getPageSize();
-    const html = buildHtmlReport(subset, colDefs, pageSize);
+    const mode     = getViewMode();
+    let html;
+    if (mode === 'card') {
+      html = buildCardReport(subset, pageSize);
+    } else {
+      const colDefs = buildColDefs(getCheckedColKeys());
+      html = buildHtmlReport(subset, colDefs, pageSize);
+    }
     const blob = new Blob([html], { type:'text/html;charset=utf-8' });
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
-    a.download = `study_${new Date().toISOString().slice(0,10)}.html`;
+    a.download = `study_${mode}_${new Date().toISOString().slice(0,10)}.html`;
     a.click();
     URL.revokeObjectURL(a.href);
     showToast('HTMLを保存しました','ok');
